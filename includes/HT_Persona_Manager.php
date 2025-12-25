@@ -28,6 +28,35 @@ class HT_Persona_Manager
     ];
 
     /**
+     * Dynamic scoring rules based on problem statement
+     */
+    private const SCORING_RULES = [
+        'view_calculator' => ['author' => 10, 'publisher' => 5, 'business' => 5],
+        'view_licensing' => ['author' => 20],
+        'high_price_stay' => ['business' => 15, 'author' => 10],
+        'pricing_table_focus' => ['business' => 12, 'author' => 8],
+        'bulk_order_interest' => ['business' => 18],
+        'design_specs_view' => ['designer' => 15],
+        'student_discount_check' => ['student' => 12],
+        'tirage_calculator' => ['author' => 15, 'business' => 10],
+        'isbn_search' => ['author' => 20],
+        'cart_add_high_value' => ['business' => 15, 'author' => 10],
+    ];
+
+    /**
+     * Divi Bridge for module detection
+     */
+    private ?HT_Divi_Bridge $divi_bridge = null;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->divi_bridge = new HT_Divi_Bridge();
+    }
+
+    /**
      * Initialize session
      *
      * @return void
@@ -39,54 +68,224 @@ class HT_Persona_Manager
     }
 
     /**
-     * Add score to user's persona
+     * Add score to user's persona with dynamic scoring
      *
      * @param string $user_identifier User identifier
      * @param string $persona_type Persona type
      * @param int $score Score to add
+     * @param string $event_type Optional event type for rule-based scoring
+     * @param string $element_class Optional element class
+     * @param array $element_data Optional element data
      * @return bool Success status
      */
-    public function add_score(string $user_identifier, string $persona_type, int $score): bool
-    {
+    public function add_score(
+        string $user_identifier,
+        string $persona_type,
+        int $score,
+        string $event_type = '',
+        string $element_class = '',
+        array $element_data = []
+    ): bool {
         global $wpdb;
 
         $table_name = $wpdb->prefix . 'homaye_persona_scores';
+        
+        // Calculate dynamic score based on rules
+        $dynamic_scores = $this->calculate_dynamic_scores(
+            $event_type,
+            $element_class,
+            $element_data
+        );
+        
+        // Apply scores to all relevant personas
+        $success = true;
+        foreach ($dynamic_scores as $persona => $dynamic_score) {
+            $total_score = ($persona === $persona_type) ? $score + $dynamic_score : $dynamic_score;
+            
+            if ($total_score <= 0) {
+                continue;
+            }
 
-        // Get existing score
-        $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE user_identifier = %s AND persona_type = %s",
-            $user_identifier,
-            $persona_type
-        ));
+            // Get existing score
+            $existing = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM $table_name WHERE user_identifier = %s AND persona_type = %s",
+                $user_identifier,
+                $persona
+            ));
 
-        if ($existing) {
-            // Update existing score
-            return (bool) $wpdb->update(
-                $table_name,
-                [
-                    'score' => $existing->score + $score,
-                    'updated_at' => current_time('mysql'),
-                ],
-                [
-                    'id' => $existing->id,
-                ],
-                ['%d', '%s'],
-                ['%d']
-            );
-        } else {
-            // Insert new score
-            return (bool) $wpdb->insert(
-                $table_name,
-                [
-                    'user_identifier' => $user_identifier,
-                    'persona_type' => $persona_type,
-                    'score' => $score,
-                    'created_at' => current_time('mysql'),
-                    'updated_at' => current_time('mysql'),
-                ],
-                ['%s', '%s', '%d', '%s', '%s']
-            );
+            if ($existing) {
+                // Update existing score
+                $result = (bool) $wpdb->update(
+                    $table_name,
+                    [
+                        'score' => $existing->score + $total_score,
+                        'updated_at' => current_time('mysql'),
+                    ],
+                    [
+                        'id' => $existing->id,
+                    ],
+                    ['%d', '%s'],
+                    ['%d']
+                );
+                $success = $success && $result;
+            } else {
+                // Insert new score
+                $result = (bool) $wpdb->insert(
+                    $table_name,
+                    [
+                        'user_identifier' => $user_identifier,
+                        'persona_type' => $persona,
+                        'score' => $total_score,
+                        'created_at' => current_time('mysql'),
+                        'updated_at' => current_time('mysql'),
+                    ],
+                    ['%s', '%s', '%d', '%s', '%s']
+                );
+                $success = $success && $result;
+            }
         }
+        
+        // Store in transient for fast access
+        $this->cache_persona_scores($user_identifier);
+
+        return $success;
+    }
+    
+    /**
+     * Calculate dynamic scores based on event and context
+     *
+     * @param string $event_type Event type
+     * @param string $element_class Element class
+     * @param array $element_data Element data
+     * @return array Persona scores
+     */
+    private function calculate_dynamic_scores(
+        string $event_type,
+        string $element_class,
+        array $element_data
+    ): array {
+        $scores = [];
+        
+        // Get weights from Divi Bridge
+        if ($this->divi_bridge) {
+            $weights = $this->divi_bridge->get_persona_weights($element_class, $element_data);
+            
+            // Adjust weights based on event type
+            $event_multiplier = $this->get_event_multiplier($event_type);
+            
+            foreach ($weights as $persona => $weight) {
+                $scores[$persona] = (int) round($weight * $event_multiplier);
+            }
+        }
+        
+        // Apply rule-based scoring
+        $rule_key = $this->detect_scoring_rule($element_class, $element_data);
+        if ($rule_key && isset(self::SCORING_RULES[$rule_key])) {
+            foreach (self::SCORING_RULES[$rule_key] as $persona => $rule_score) {
+                $scores[$persona] = ($scores[$persona] ?? 0) + $rule_score;
+            }
+        }
+        
+        return $scores;
+    }
+    
+    /**
+     * Get event type multiplier
+     *
+     * @param string $event_type Event type
+     * @return float Multiplier
+     */
+    private function get_event_multiplier(string $event_type): float
+    {
+        return match ($event_type) {
+            'click' => 1.5,
+            'long_view' => 1.3,
+            'module_dwell' => 1.2,
+            'hover' => 0.8,
+            'scroll_to' => 0.6,
+            default => 1.0,
+        };
+    }
+    
+    /**
+     * Detect scoring rule from element data
+     *
+     * @param string $element_class Element class
+     * @param array $element_data Element data
+     * @return string|null Rule key
+     */
+    private function detect_scoring_rule(string $element_class, array $element_data): ?string
+    {
+        $content = mb_strtolower($element_data['text'] ?? '', 'UTF-8');
+        $class_lower = mb_strtolower($element_class, 'UTF-8');
+        
+        // Calculator detection
+        if (strpos($content, 'محاسبه') !== false || strpos($class_lower, 'calculator') !== false) {
+            if (strpos($content, 'تیراژ') !== false) {
+                return 'tirage_calculator';
+            }
+            return 'view_calculator';
+        }
+        
+        // Licensing detection
+        if (strpos($content, 'مجوز') !== false || strpos($content, 'license') !== false) {
+            return 'view_licensing';
+        }
+        
+        // ISBN detection
+        if (strpos($content, 'isbn') !== false) {
+            return 'isbn_search';
+        }
+        
+        // Bulk order detection
+        if (strpos($content, 'عمده') !== false || strpos($content, 'انبوه') !== false || 
+            strpos($content, 'bulk') !== false) {
+            return 'bulk_order_interest';
+        }
+        
+        // Design specs detection
+        if (strpos($content, 'cmyk') !== false || strpos($content, 'dpi') !== false || 
+            strpos($class_lower, 'design') !== false) {
+            return 'design_specs_view';
+        }
+        
+        // Student discount detection
+        if (strpos($content, 'دانشجویی') !== false || strpos($content, 'student') !== false) {
+            return 'student_discount_check';
+        }
+        
+        // Pricing table detection
+        if (strpos($class_lower, 'pricing') !== false) {
+            return 'pricing_table_focus';
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Cache persona scores in transient
+     *
+     * @param string $user_identifier User identifier
+     * @return void
+     */
+    private function cache_persona_scores(string $user_identifier): void
+    {
+        $scores = $this->get_scores($user_identifier);
+        $transient_key = 'ht_persona_' . md5($user_identifier);
+        set_transient($transient_key, $scores, HOUR_IN_SECONDS);
+    }
+    
+    /**
+     * Get cached persona scores
+     *
+     * @param string $user_identifier User identifier
+     * @return array|null Cached scores or null
+     */
+    private function get_cached_scores(string $user_identifier): ?array
+    {
+        $transient_key = 'ht_persona_' . md5($user_identifier);
+        $cached = get_transient($transient_key);
+        return $cached !== false ? $cached : null;
     }
 
     /**
@@ -97,6 +296,12 @@ class HT_Persona_Manager
      */
     public function get_scores(string $user_identifier): array
     {
+        // Try to get from cache first
+        $cached = $this->get_cached_scores($user_identifier);
+        if ($cached !== null) {
+            return $cached;
+        }
+
         global $wpdb;
 
         $table_name = $wpdb->prefix . 'homaye_persona_scores';
@@ -109,6 +314,11 @@ class HT_Persona_Manager
         $scores = [];
         foreach ($results as $row) {
             $scores[$row['persona_type']] = (int) $row['score'];
+        }
+        
+        // Cache the results
+        if (!empty($scores)) {
+            $this->cache_persona_scores($user_identifier);
         }
 
         return $scores;

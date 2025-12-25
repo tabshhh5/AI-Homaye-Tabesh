@@ -204,12 +204,21 @@ class HT_Telemetry
     ): void {
         $persona_manager = \HomayeTabesh\HT_Core::instance()->memory;
         
-        // Calculate score based on event type and element
-        $score_delta = $this->calculate_score_delta($event_type, $element_class, $element_data);
+        // Calculate base score based on event type
+        $base_score = $this->calculate_score_delta($event_type, $element_class, $element_data);
         
-        if ($score_delta !== 0) {
+        if ($base_score > 0) {
             $persona_type = $this->determine_persona_type($element_class, $element_data);
-            $persona_manager->add_score($user_identifier, $persona_type, $score_delta);
+            
+            // Use enhanced add_score with dynamic scoring
+            $persona_manager->add_score(
+                $user_identifier,
+                $persona_type,
+                $base_score,
+                $event_type,
+                $element_class,
+                is_array($element_data) ? $element_data : []
+            );
         }
     }
 

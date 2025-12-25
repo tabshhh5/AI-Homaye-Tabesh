@@ -40,6 +40,21 @@ final class HT_Core
      * Knowledge base controller
      */
     public HT_Knowledge_Base $knowledge;
+    
+    /**
+     * WooCommerce context provider
+     */
+    public HT_WooCommerce_Context $woo_context;
+    
+    /**
+     * Divi bridge controller
+     */
+    public HT_Divi_Bridge $divi_bridge;
+    
+    /**
+     * Decision trigger system
+     */
+    public HT_Decision_Trigger $decision_trigger;
 
     /**
      * Admin interface
@@ -72,10 +87,13 @@ final class HT_Core
      */
     private function init_services(): void
     {
-        $this->brain     = new HT_Gemini_Client();
-        $this->eyes      = new HT_Telemetry();
-        $this->memory    = new HT_Persona_Manager();
-        $this->knowledge = new HT_Knowledge_Base();
+        $this->brain            = new HT_Gemini_Client();
+        $this->eyes             = new HT_Telemetry();
+        $this->memory           = new HT_Persona_Manager();
+        $this->knowledge        = new HT_Knowledge_Base();
+        $this->woo_context      = new HT_WooCommerce_Context();
+        $this->divi_bridge      = new HT_Divi_Bridge();
+        $this->decision_trigger = new HT_Decision_Trigger();
         
         // Initialize admin only in admin area
         if (is_admin()) {

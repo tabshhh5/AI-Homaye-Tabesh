@@ -20,9 +20,17 @@
     let eventQueue = [];
     const BATCH_SIZE = 10;
     const BATCH_INTERVAL = 5000; // 5 seconds
+    const DEBOUNCE_DELAY = 300; // Debounce delay for scroll events
 
     // Tracked elements cache
     const trackedElements = new WeakSet();
+    
+    // Dwell time tracking
+    const dwellTimeTracking = new Map();
+    
+    // Scroll depth tracking
+    let maxScrollDepth = 0;
+    let scrollDebounceTimer = null;
 
     /**
      * Send event to server
@@ -53,7 +61,7 @@
     }
 
     /**
-     * Send batch of events
+     * Send batch of events (with debouncing)
      */
     function sendBatch() {
         if (eventQueue.length === 0) return;
@@ -80,6 +88,113 @@
         }).catch(error => {
             console.error('Homaye Tabesh - Failed to send events:', error);
         });
+    }
+    
+    /**
+     * Track dwell time on Divi modules
+     */
+    function trackDwellTime(element, moduleId) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Start tracking dwell time
+                    if (!dwellTimeTracking.has(moduleId)) {
+                        dwellTimeTracking.set(moduleId, {
+                            startTime: Date.now(),
+                            element: element,
+                            focused: true
+                        });
+                    }
+                } else {
+                    // Stop tracking and send event if dwell time is significant
+                    const tracking = dwellTimeTracking.get(moduleId);
+                    if (tracking && tracking.focused) {
+                        const dwellTime = Date.now() - tracking.startTime;
+                        if (dwellTime >= 1000) { // 1 second minimum
+                            sendEvent('module_dwell', element, {
+                                module_id: moduleId,
+                                dwell_time: dwellTime,
+                                viewport_ratio: entry.intersectionRatio
+                            });
+                        }
+                        tracking.focused = false;
+                    }
+                }
+            });
+        }, { threshold: [0.5, 0.75, 1.0] });
+        
+        observer.observe(element);
+    }
+    
+    /**
+     * Track scroll depth with debouncing
+     */
+    function trackScrollDepth() {
+        if (scrollDebounceTimer) {
+            clearTimeout(scrollDebounceTimer);
+        }
+        
+        scrollDebounceTimer = setTimeout(() => {
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            const scrollDepth = Math.round(((scrollTop + windowHeight) / documentHeight) * 100);
+            
+            // Track new scroll depth milestones
+            if (scrollDepth > maxScrollDepth) {
+                const oldDepth = maxScrollDepth;
+                maxScrollDepth = scrollDepth;
+                
+                // Send events at 25%, 50%, 75%, 100% milestones
+                const milestones = [25, 50, 75, 100];
+                milestones.forEach(milestone => {
+                    if (oldDepth < milestone && scrollDepth >= milestone) {
+                        sendEvent('scroll_depth', document.body, {
+                            depth_percentage: milestone,
+                            current_depth: scrollDepth
+                        });
+                    }
+                });
+            }
+        }, DEBOUNCE_DELAY);
+    }
+    
+    /**
+     * Detect heat-point areas (high interaction zones)
+     */
+    function detectHeatPoints() {
+        // Track click coordinates for heat-point analysis
+        document.addEventListener('click', function(e) {
+            const element = e.target;
+            const rect = element.getBoundingClientRect();
+            
+            // Send heat-point data for special sections
+            if (element.closest('.et_pb_pricing') || 
+                element.closest('.et_pb_wc_price') || 
+                element.closest('[class*="calculator"]')) {
+                sendEvent('heat_point', element, {
+                    x: Math.round(e.clientX),
+                    y: Math.round(e.clientY),
+                    element_x: Math.round(rect.left),
+                    element_y: Math.round(rect.top),
+                    section_type: getModuleType(element)
+                });
+            }
+        });
+    }
+    
+    /**
+     * Get module type from element
+     */
+    function getModuleType(element) {
+        const classes = element.className;
+        if (classes.includes('et_pb_pricing')) return 'pricing_table';
+        if (classes.includes('calculator')) return 'calculator';
+        if (classes.includes('et_pb_wc_price')) return 'product_price';
+        if (classes.includes('et_pb_wc_add_to_cart')) return 'add_to_cart';
+        if (classes.includes('license') || classes.includes('permission')) return 'licensing';
+        return 'unknown';
     }
 
     /**
@@ -165,10 +280,16 @@
 
         diviSelectors.forEach(selector => {
             const elements = document.querySelectorAll(selector);
-            elements.forEach(element => {
+            elements.forEach((element, index) => {
+                // Generate unique module ID
+                const moduleId = element.id || `${selector.replace('.', '')}_${index}`;
+                
                 trackHover(element);
                 trackClick(element);
                 trackScroll(element);
+                
+                // Track dwell time for all Divi modules
+                trackDwellTime(element, moduleId);
             });
         });
     }
@@ -266,6 +387,12 @@
         initWooCommerceTracking();
         initCustomTracking();
         initMutationObserver();
+        
+        // Initialize scroll depth tracking
+        window.addEventListener('scroll', trackScrollDepth, { passive: true });
+        
+        // Initialize heat-point detection
+        detectHeatPoints();
 
         // Setup batch sending interval
         setInterval(sendBatch, BATCH_INTERVAL);
@@ -273,7 +400,7 @@
         // Send remaining events before page unload
         window.addEventListener('beforeunload', sendBatch);
 
-        console.log('Homaye Tabesh - Tracking initialized');
+        console.log('Homaye Tabesh - Advanced tracking initialized with dwell time & scroll depth');
     }
 
     // Start initialization
