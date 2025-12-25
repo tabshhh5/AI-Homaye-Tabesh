@@ -77,6 +77,28 @@ class HT_Activator
         ) $charset_collate;";
 
         dbDelta($sql);
+
+        // Create conversion sessions table (PR5)
+        $table_name = $wpdb->prefix . 'homaye_conversion_sessions';
+
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_identifier varchar(255) NOT NULL,
+            session_data longtext NOT NULL,
+            form_completion int(11) DEFAULT 0,
+            cart_value decimal(10,2) DEFAULT 0.00,
+            conversion_status varchar(50) DEFAULT 'in_progress',
+            order_id bigint(20) UNSIGNED DEFAULT 0,
+            last_activity datetime DEFAULT CURRENT_TIMESTAMP,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            completed_at datetime DEFAULT NULL,
+            PRIMARY KEY  (id),
+            KEY user_identifier (user_identifier),
+            KEY conversion_status (conversion_status),
+            KEY last_activity (last_activity)
+        ) $charset_collate;";
+
+        dbDelta($sql);
     }
 
     /**

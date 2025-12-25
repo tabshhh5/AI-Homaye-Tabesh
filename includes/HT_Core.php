@@ -72,6 +72,11 @@ final class HT_Core
     public HT_Perception_Bridge $perception_bridge;
 
     /**
+     * Cart Manager (Action & Conversion Engine)
+     */
+    public HT_Cart_Manager $cart_manager;
+
+    /**
      * Admin interface
      */
     public ?HT_Admin $admin = null;
@@ -112,6 +117,7 @@ final class HT_Core
         $this->inference_engine = new HT_Inference_Engine();
         $this->ai_controller    = new HT_AI_Controller();
         $this->perception_bridge = new HT_Perception_Bridge($this);
+        $this->cart_manager     = new HT_Cart_Manager($this);
         
         // Initialize admin only in admin area
         if (is_admin()) {

@@ -288,15 +288,43 @@ class HT_Perception_Bridge
             true
         );
 
+        // Enqueue Action & Conversion Engine scripts (PR5)
+        wp_enqueue_script(
+            'homa-conversion-triggers',
+            HT_PLUGIN_URL . 'assets/js/homa-conversion-triggers.js',
+            [],
+            HT_VERSION,
+            true
+        );
+
+        wp_enqueue_script(
+            'homa-form-hydration',
+            HT_PLUGIN_URL . 'assets/js/homa-form-hydration.js',
+            ['homa-indexer'],
+            HT_VERSION,
+            true
+        );
+
+        wp_enqueue_script(
+            'homa-offer-display',
+            HT_PLUGIN_URL . 'assets/js/homa-offer-display.js',
+            [],
+            HT_VERSION,
+            true
+        );
+
         // Add configuration
         $config = [
-            'apiUrl' => rest_url('homaye/v1/ai/analyze-intent'),
+            'apiUrl' => rest_url('homaye/v1'),
             'navigationUrl' => rest_url('homaye/v1/navigation/suggest'),
             'tourUrl' => rest_url('homaye/v1/tour/get-steps'),
             'nonce' => wp_create_nonce('wp_rest'),
+            'sessionId' => $this->get_session_id(),
+            'userId' => get_current_user_id() ?: 'anonymous',
             'enableIntentAnalysis' => true,
             'enableSemanticMapping' => true,
             'enableTours' => true,
+            'enableConversionEngine' => true,
             // Configurable timing and threshold values
             'inputDebounceDelay' => apply_filters('homaye_input_debounce_delay', 800),
             'inputMinChars' => apply_filters('homaye_input_min_chars', 3),
@@ -318,6 +346,9 @@ class HT_Perception_Bridge
         wp_localize_script('homa-input-observer', 'homayePerceptionConfig', $config);
         wp_localize_script('homa-spatial-navigator', 'homayePerceptionConfig', $config);
         wp_localize_script('homa-tour-manager', 'homayePerceptionConfig', $config);
+        wp_localize_script('homa-conversion-triggers', 'homayePerceptionConfig', $config);
+        wp_localize_script('homa-form-hydration', 'homayePerceptionConfig', $config);
+        wp_localize_script('homa-offer-display', 'homayePerceptionConfig', $config);
     }
 
     /**

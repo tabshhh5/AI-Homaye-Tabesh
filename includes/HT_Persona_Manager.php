@@ -526,4 +526,175 @@ class HT_Persona_Manager
             'session' => $this->get_session_data($user_identifier),
         ];
     }
+
+    /**
+     * Save conversion session metadata
+     * Used for tracking abandoned carts and conversion paths
+     *
+     * @param string $user_identifier User identifier
+     * @param array $session_data Session data to save
+     * @return bool Success status
+     */
+    public function save_conversion_session(string $user_identifier, array $session_data): bool
+    {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'homaye_conversion_sessions';
+
+        // Check if table exists, if not create it
+        $this->maybe_create_conversion_sessions_table();
+
+        // Prepare data
+        $data = [
+            'user_identifier' => $user_identifier,
+            'session_data' => wp_json_encode($session_data),
+            'form_completion' => $session_data['form_completion'] ?? 0,
+            'cart_value' => $session_data['cart_value'] ?? 0,
+            'conversion_status' => $session_data['conversion_status'] ?? 'in_progress',
+            'last_activity' => current_time('mysql'),
+            'created_at' => current_time('mysql')
+        ];
+
+        // Check if session exists
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $table_name WHERE user_identifier = %s AND conversion_status = 'in_progress' ORDER BY id DESC LIMIT 1",
+            $user_identifier
+        ));
+
+        if ($existing) {
+            // Update existing session
+            return (bool) $wpdb->update(
+                $table_name,
+                $data,
+                ['id' => $existing],
+                ['%s', '%s', '%d', '%f', '%s', '%s'],
+                ['%d']
+            );
+        } else {
+            // Insert new session
+            return (bool) $wpdb->insert($table_name, $data, ['%s', '%s', '%d', '%f', '%s', '%s', '%s']);
+        }
+    }
+
+    /**
+     * Get conversion session data
+     *
+     * @param string $user_identifier User identifier
+     * @return array|null Session data or null
+     */
+    public function get_conversion_session(string $user_identifier): ?array
+    {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'homaye_conversion_sessions';
+
+        $session = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE user_identifier = %s ORDER BY last_activity DESC LIMIT 1",
+            $user_identifier
+        ), ARRAY_A);
+
+        if ($session) {
+            $session['session_data'] = json_decode($session['session_data'], true);
+            return $session;
+        }
+
+        return null;
+    }
+
+    /**
+     * Mark conversion session as completed
+     *
+     * @param string $user_identifier User identifier
+     * @param int $order_id Optional order ID
+     * @return bool Success status
+     */
+    public function complete_conversion_session(string $user_identifier, int $order_id = 0): bool
+    {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'homaye_conversion_sessions';
+
+        return (bool) $wpdb->update(
+            $table_name,
+            [
+                'conversion_status' => 'completed',
+                'order_id' => $order_id,
+                'completed_at' => current_time('mysql')
+            ],
+            [
+                'user_identifier' => $user_identifier,
+                'conversion_status' => 'in_progress'
+            ],
+            ['%s', '%d', '%s'],
+            ['%s', '%s']
+        );
+    }
+
+    /**
+     * Get abandoned conversion sessions
+     * Sessions that haven't been updated in the last hour
+     *
+     * @param int $hours Hours of inactivity to consider abandoned
+     * @return array Abandoned sessions
+     */
+    public function get_abandoned_sessions(int $hours = 1): array
+    {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'homaye_conversion_sessions';
+
+        $results = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table_name 
+             WHERE conversion_status = 'in_progress' 
+             AND last_activity < DATE_SUB(NOW(), INTERVAL %d HOUR)
+             ORDER BY last_activity DESC
+             LIMIT 100",
+            $hours
+        ), ARRAY_A);
+
+        foreach ($results as &$session) {
+            $session['session_data'] = json_decode($session['session_data'], true);
+        }
+
+        return $results;
+    }
+
+    /**
+     * Maybe create conversion sessions table
+     *
+     * @return void
+     */
+    private function maybe_create_conversion_sessions_table(): void
+    {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'homaye_conversion_sessions';
+        $charset_collate = $wpdb->get_charset_collate();
+
+        // Check if table exists (using $wpdb->prepare for security)
+        $table_check = $wpdb->prepare("SHOW TABLES LIKE %s", $table_name);
+        if ($wpdb->get_var($table_check) === $table_name) {
+            return;
+        }
+
+        $sql = "CREATE TABLE $table_name (
+            id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_identifier varchar(255) NOT NULL,
+            session_data longtext NOT NULL,
+            form_completion int(11) DEFAULT 0,
+            cart_value decimal(10,2) DEFAULT 0.00,
+            conversion_status varchar(50) DEFAULT 'in_progress',
+            order_id bigint(20) UNSIGNED DEFAULT 0,
+            last_activity datetime DEFAULT CURRENT_TIMESTAMP,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            completed_at datetime DEFAULT NULL,
+            PRIMARY KEY  (id),
+            KEY user_identifier (user_identifier),
+            KEY conversion_status (conversion_status),
+            KEY last_activity (last_activity)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
 }
