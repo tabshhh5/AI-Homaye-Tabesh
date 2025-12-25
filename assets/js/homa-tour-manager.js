@@ -21,7 +21,9 @@
             this.overlayElement = null;
             this.highlightElement = null;
             this.tooltipElement = null;
-            this.zIndexBase = 999990; // Very high z-index for overlay
+            // Configurable z-index base - can be overridden via config
+            // Note: Very high z-index (999990) may conflict with some themes
+            this.zIndexBase = this.config.tourZIndexBase || 999990;
             
             this.init();
         }

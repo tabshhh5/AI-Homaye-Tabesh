@@ -17,11 +17,21 @@
         constructor() {
             this.config = window.homayeConfig || {};
             this.apiUrl = this.config.apiUrl || '/wp-json/homaye/v1/ai/analyze-intent';
-            this.debounceDelay = 800; // 800ms pause before analysis
-            this.minChars = 3; // Minimum characters to trigger analysis
+            this.debounceDelay = this.config.inputDebounceDelay || 800; // Configurable delay
+            this.minChars = this.config.inputMinChars || 3; // Configurable minimum chars
             this.inputBuffer = new Map(); // Buffer for each input field
             this.activeTimers = new Map(); // Debounce timers
-            this.ignoredFields = new Set(['password', 'credit-card', 'cvv']); // Privacy protection
+            
+            // Configurable list of sensitive keywords for privacy protection
+            this.ignoredFields = new Set(
+                this.config.sensitiveFieldKeywords || [
+                    'password', 'passwd', 'pwd',
+                    'credit', 'card', 'cvv', 'cvc',
+                    'ssn', 'social', 'security',
+                    'account', 'routing',
+                    'national_id', 'کد_ملی', 'کدملی'
+                ]
+            );
             this.observedInputs = new WeakSet();
             this.intentCallbacks = [];
             

@@ -88,8 +88,9 @@
 
             console.log(`Homa Indexer: Indexed ${indexedCount} new elements. Total: ${this.map.size}`);
             
-            // Expose to window for debugging
-            window.HomaIndexerMap = this.map;
+            // Expose to window for debugging (in namespaced debug object)
+            if (!window.HomaDebug) window.HomaDebug = {};
+            window.HomaDebug.IndexerMap = this.map;
         }
 
         /**

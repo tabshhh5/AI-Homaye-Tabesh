@@ -57,7 +57,10 @@ class HT_Perception_Bridge
         register_rest_route('homaye/v1', '/ai/analyze-intent', [
             'methods' => 'POST',
             'callback' => [$this, 'analyze_intent'],
-            'permission_callback' => '__return_true',
+            'permission_callback' => function() {
+                // Allow logged-in users or users with valid session
+                return is_user_logged_in() || $this->has_valid_session();
+            },
             'args' => [
                 'field_name' => [
                     'required' => true,
@@ -85,7 +88,9 @@ class HT_Perception_Bridge
         register_rest_route('homaye/v1', '/navigation/suggest', [
             'methods' => 'POST',
             'callback' => [$this, 'get_navigation_suggestions'],
-            'permission_callback' => '__return_true',
+            'permission_callback' => function() {
+                return is_user_logged_in() || $this->has_valid_session();
+            },
             'args' => [
                 'current_location' => [
                     'required' => true,
@@ -291,7 +296,20 @@ class HT_Perception_Bridge
             'nonce' => wp_create_nonce('wp_rest'),
             'enableIntentAnalysis' => true,
             'enableSemanticMapping' => true,
-            'enableTours' => true
+            'enableTours' => true,
+            // Configurable timing and threshold values
+            'inputDebounceDelay' => apply_filters('homaye_input_debounce_delay', 800),
+            'inputMinChars' => apply_filters('homaye_input_min_chars', 3),
+            // Configurable z-index for tour overlay
+            'tourZIndexBase' => apply_filters('homaye_tour_zindex_base', 999990),
+            // Configurable sensitive field keywords
+            'sensitiveFieldKeywords' => apply_filters('homaye_sensitive_keywords', [
+                'password', 'passwd', 'pwd',
+                'credit', 'card', 'cvv', 'cvc',
+                'ssn', 'social', 'security',
+                'account', 'routing',
+                'national_id', 'کد_ملی', 'کدملی'
+            ])
         ];
 
         wp_localize_script('homa-indexer', 'homayePerceptionConfig', $config);
@@ -430,5 +448,22 @@ class HT_Perception_Bridge
         setcookie('homaye_session_id', $session_id, time() + DAY_IN_SECONDS * 30, COOKIEPATH, COOKIE_DOMAIN);
         
         return $session_id;
+    }
+
+    /**
+     * Check if user has valid session
+     *
+     * @return bool
+     */
+    private function has_valid_session(): bool
+    {
+        // Check for valid session cookie
+        if (isset($_COOKIE['homaye_session_id'])) {
+            $session_id = sanitize_text_field($_COOKIE['homaye_session_id']);
+            // Session is valid if it has the correct format
+            return strpos($session_id, 'session_') === 0;
+        }
+        
+        return false;
     }
 }
