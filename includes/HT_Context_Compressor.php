@@ -15,6 +15,8 @@ namespace HomayeTabesh;
  * 
  * Converts long conversations into token-efficient facts
  * for AI prompt enrichment without overloading context window
+ * 
+ * Example: 2500 tokens → 500 tokens (~80% reduction)
  */
 class HT_Context_Compressor
 {
@@ -22,6 +24,12 @@ class HT_Context_Compressor
      * Maximum tokens to allow in compressed context
      */
     private const MAX_TOKENS = 500;
+
+    /**
+     * Approximate token-to-character ratio for Persian text
+     * Persian text typically uses ~4 characters per token
+     */
+    private const TOKEN_CHAR_RATIO = 4;
 
     /**
      * Compress chat messages into concise facts
@@ -162,8 +170,8 @@ class HT_Context_Compressor
      */
     private static function truncate_to_token_limit(string $text, int $max_tokens): string
     {
-        // Rough approximation: 1 token ≈ 4 characters for Persian text
-        $max_chars = $max_tokens * 4;
+        // Use class constant for token-to-character ratio
+        $max_chars = $max_tokens * self::TOKEN_CHAR_RATIO;
 
         if (mb_strlen($text) <= $max_chars) {
             return $text;

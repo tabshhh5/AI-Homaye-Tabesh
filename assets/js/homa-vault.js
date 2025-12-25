@@ -88,9 +88,18 @@
         debounceTimer: null,
 
         /**
-         * Debounce delay (ms)
+         * Debounce delay (ms) - configurable for different use cases
          */
         debounceDelay: 1000,
+
+        /**
+         * Known referral sources for tracking
+         */
+        referralSources: {
+            TOROB: 'torob.com',
+            GOOGLE: 'google.com',
+            ORGANIC: 'organic'
+        },
 
         /**
          * Update local cache and trigger sync
@@ -375,7 +384,16 @@
             // Track page category interest
             const category = document.body.getAttribute('data-category');
             if (category) {
-                const source = document.referrer.includes('torob.com') ? 'torob' : 'organic';
+                const referrer = document.referrer;
+                let source = window.HomaStore.referralSources.ORGANIC;
+                
+                // Check if from known referral sources
+                if (referrer.includes(window.HomaStore.referralSources.TOROB)) {
+                    source = 'torob';
+                } else if (referrer.includes(window.HomaStore.referralSources.GOOGLE)) {
+                    source = 'google';
+                }
+                
                 window.HomaStore.trackInterest(category, 1, source);
             }
         });

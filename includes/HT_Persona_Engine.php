@@ -33,6 +33,11 @@ class HT_Persona_Engine
     public const PERSONA_PRICE_SENSITIVE = 'price_sensitive';
 
     /**
+     * Minimum confidence threshold for persona detection
+     */
+    private const MIN_CONFIDENCE_THRESHOLD = 10;
+
+    /**
      * Analyze user and determine primary persona
      *
      * @return array Persona data with type and confidence
@@ -217,7 +222,7 @@ class HT_Persona_Engine
     {
         $persona_data = self::analyze_user_persona();
         
-        if ($persona_data['confidence'] < 10) {
+        if ($persona_data['confidence'] < self::MIN_CONFIDENCE_THRESHOLD) {
             return ''; // Not enough data
         }
 
@@ -323,7 +328,7 @@ class HT_Persona_Engine
         $interests = HT_Vault_Manager::get_user_interests(3);
         $session = HT_Vault_Manager::get_session_snapshot();
 
-        if ($persona_data['confidence'] < 5) {
+        if ($persona_data['confidence'] < self::MIN_CONFIDENCE_THRESHOLD) {
             return 'شما تازه با ما آشنا شده‌اید. هنوز اطلاعات کافی برای شناخت شما ندارم، اما خوشحال می‌شوم بیشتر با شما آشنا شوم!';
         }
 
