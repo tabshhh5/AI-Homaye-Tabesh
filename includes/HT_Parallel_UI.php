@@ -39,6 +39,9 @@ class HT_Parallel_UI
      */
     private function register_hooks(): void
     {
+        // PR 6.5: Enqueue event bus early (priority 5) so all other scripts can depend on it
+        add_action('wp_enqueue_scripts', [$this, 'enqueue_event_bus'], 5);
+        
         // Enqueue scripts and styles
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets'], 30);
         
@@ -47,6 +50,38 @@ class HT_Parallel_UI
 
         // Add body class
         add_filter('body_class', [$this, 'add_body_class']);
+    }
+
+    /**
+     * Enqueue Event Bus early (PR 6.5)
+     * This is loaded first so all other scripts can depend on it
+     *
+     * @return void
+     */
+    public function enqueue_event_bus(): void
+    {
+        // Only load on frontend
+        if (is_admin()) {
+            return;
+        }
+
+        // PR 6.5: Enqueue Event Bus first (dependency for all other scripts)
+        wp_enqueue_script(
+            'homa-event-bus',
+            HT_PLUGIN_URL . 'assets/js/homa-event-bus.js',
+            [],
+            HT_VERSION,
+            true
+        );
+
+        // PR 6.5: Enqueue Command Interpreter
+        wp_enqueue_script(
+            'homa-command-interpreter',
+            HT_PLUGIN_URL . 'assets/js/homa-command-interpreter.js',
+            ['homa-event-bus'],
+            HT_VERSION,
+            true
+        );
     }
 
     /**
@@ -73,11 +108,11 @@ class HT_Parallel_UI
             true
         );
 
-        // Enqueue orchestrator (vanilla JS)
+        // Enqueue orchestrator (vanilla JS) - depends on event bus (loaded at priority 5)
         wp_enqueue_script(
             'homa-orchestrator',
             HT_PLUGIN_URL . 'assets/js/homa-orchestrator.js',
-            [],
+            ['homa-event-bus'],
             HT_VERSION,
             true
         );
@@ -91,13 +126,13 @@ class HT_Parallel_UI
             true
         );
 
-        // Enqueue React sidebar bundle
+        // Enqueue React sidebar bundle - depends on event bus
         $build_file = HT_PLUGIN_DIR . 'assets/build/homa-sidebar.js';
         if (file_exists($build_file)) {
             wp_enqueue_script(
                 'homa-sidebar',
                 HT_PLUGIN_URL . 'assets/build/homa-sidebar.js',
-                ['react', 'react-dom', 'homa-orchestrator'],
+                ['react', 'react-dom', 'homa-event-bus', 'homa-orchestrator'],
                 HT_VERSION,
                 true
             );

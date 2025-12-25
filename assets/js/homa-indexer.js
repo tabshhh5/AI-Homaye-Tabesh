@@ -103,6 +103,21 @@
                 },
                 enumerable: true
             });
+
+            // Emit indexer ready event
+            if (window.Homa && window.Homa.emit) {
+                window.Homa.emit('indexer:ready', {
+                    map: this.getAll(),
+                    count: this.map.size
+                });
+                window.Homa.updateState({ 
+                    indexerReady: true,
+                    pageMap: this.getAll()
+                });
+            }
+
+            // Setup change listeners on indexed form elements
+            this.setupChangeListeners();
         }
 
         /**
@@ -395,6 +410,68 @@
             this.map.clear();
             this.fieldMap.clear();
             console.log('Homa Indexer: Index cleared');
+        }
+
+        /**
+         * Setup change listeners on indexed form elements
+         */
+        setupChangeListeners() {
+            if (!window.Homa || !window.Homa.emit) {
+                console.warn('Homa Indexer: Event bus not ready, skipping change listeners');
+                return;
+            }
+
+            // Debounce helper
+            const debounce = (func, wait) => {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            };
+
+            // Setup listener for each indexed form field
+            this.map.forEach((data, key) => {
+                const element = data.element;
+                
+                // Only for form elements
+                if (!['input', 'textarea', 'select'].includes(data.type)) {
+                    return;
+                }
+
+                // Avoid duplicate listeners
+                if (element.dataset.homaListenerAttached) {
+                    return;
+                }
+
+                // Mark as having listener
+                element.dataset.homaListenerAttached = 'true';
+
+                const handler = debounce((e) => {
+                    const value = e.target.value;
+                    
+                    // Emit site input change event
+                    window.Homa.emit('site:input_change', {
+                        field: key,
+                        value: value,
+                        meaning: data.fieldMeaning,
+                        semanticName: data.semanticName,
+                        element: element,
+                        type: data.type
+                    });
+
+                    console.log(`[Homa Sync] Field "${data.fieldMeaning}" changed to: ${value}`);
+                }, 300);
+
+                element.addEventListener('input', handler);
+                element.addEventListener('change', handler);
+            });
+
+            console.log('Homa Indexer: Change listeners attached to form elements');
         }
 
         /**

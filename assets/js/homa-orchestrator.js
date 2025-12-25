@@ -93,10 +93,20 @@
             document.body.classList.add('homa-open');
             this.isOpen = true;
 
+            // Update global state
+            if (window.Homa && window.Homa.updateState) {
+                window.Homa.updateState({ isSidebarOpen: true });
+            }
+
             // Dispatch event for React
             document.dispatchEvent(new CustomEvent('homa:toggle-sidebar', {
                 detail: { isOpen: true }
             }));
+
+            // Emit via event bus
+            if (window.Homa && window.Homa.emit) {
+                window.Homa.emit('sidebar:opened', { timestamp: Date.now() });
+            }
 
             // Trigger window resize after animation completes
             setTimeout(() => {
@@ -116,10 +126,20 @@
             document.body.classList.remove('homa-open');
             this.isOpen = false;
 
+            // Update global state
+            if (window.Homa && window.Homa.updateState) {
+                window.Homa.updateState({ isSidebarOpen: false });
+            }
+
             // Dispatch event for React
             document.dispatchEvent(new CustomEvent('homa:toggle-sidebar', {
                 detail: { isOpen: false }
             }));
+
+            // Emit via event bus
+            if (window.Homa && window.Homa.emit) {
+                window.Homa.emit('sidebar:closed', { timestamp: Date.now() });
+            }
 
             // Trigger window resize after animation completes
             setTimeout(() => {
