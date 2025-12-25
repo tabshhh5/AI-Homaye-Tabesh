@@ -42,6 +42,11 @@ final class HT_Core
     public HT_Knowledge_Base $knowledge;
 
     /**
+     * Admin interface
+     */
+    public ?HT_Admin $admin = null;
+
+    /**
      * Get singleton instance
      *
      * @return self
@@ -71,6 +76,14 @@ final class HT_Core
         $this->eyes      = new HT_Telemetry();
         $this->memory    = new HT_Persona_Manager();
         $this->knowledge = new HT_Knowledge_Base();
+        
+        // Initialize admin only in admin area
+        if (is_admin()) {
+            $this->admin = new HT_Admin();
+        }
+
+        // Initialize default knowledge base on first load
+        add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
     }
 
     /**
