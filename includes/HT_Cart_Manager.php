@@ -538,8 +538,27 @@ class HT_Cart_Manager
      */
     private function has_valid_session(): bool
     {
-        // Simple session validation - can be enhanced
-        return session_status() === PHP_SESSION_ACTIVE || isset($_COOKIE['wp_woocommerce_session_']);
+        // Check WordPress session
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            return true;
+        }
+        
+        // Check WooCommerce session (more secure validation)
+        if (function_exists('WC') && WC()->session) {
+            $customer_id = WC()->session->get_customer_id();
+            return !empty($customer_id);
+        }
+        
+        // Fallback to cookie check with nonce validation
+        if (isset($_COOKIE['wp_woocommerce_session_'])) {
+            // Verify the nonce in the request
+            $nonce = $_SERVER['HTTP_X_WP_NONCE'] ?? '';
+            if (wp_verify_nonce($nonce, 'wp_rest')) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**

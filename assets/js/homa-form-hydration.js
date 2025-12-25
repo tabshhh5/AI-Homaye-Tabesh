@@ -83,19 +83,46 @@
         setupAjaxFormWatcher() {
             // jQuery AJAX complete handler for form frameworks
             if (window.jQuery) {
+                let ajaxDebounce = null;
+                
                 jQuery(document).ajaxComplete((event, xhr, settings) => {
                     console.log('Homa Form Hydration: AJAX detected, re-scanning forms...');
                     
-                    // Re-detect forms after AJAX
-                    setTimeout(() => {
+                    // Debounced re-scan to handle multiple rapid AJAX calls
+                    clearTimeout(ajaxDebounce);
+                    ajaxDebounce = setTimeout(() => {
                         this.detectFormFramework();
                         // Re-index if indexer is available
                         if (window.Homa && window.Homa.Indexer && window.Homa.Indexer.scanPage) {
                             window.Homa.Indexer.scanPage();
                         }
-                    }, 500);
+                        // Process any pending syncs after re-scan
+                        this.processPendingSync();
+                    }, 300); // Reduced to 300ms with debouncing for better responsiveness
                 });
             }
+            
+            // Alternative: Use MutationObserver as backup for non-jQuery forms
+            const observer = new MutationObserver((mutations) => {
+                const hasFormChanges = mutations.some(mutation => {
+                    return Array.from(mutation.addedNodes).some(node => {
+                        return node.nodeName === 'FORM' || 
+                               (node.querySelector && node.querySelector('form'));
+                    });
+                });
+                
+                if (hasFormChanges) {
+                    console.log('Homa Form Hydration: New form detected via MutationObserver');
+                    this.detectFormFramework();
+                    // Process pending syncs
+                    setTimeout(() => this.processPendingSync(), 100);
+                }
+            });
+            
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
         }
 
         /**
