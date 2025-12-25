@@ -1,0 +1,55 @@
+/**
+ * Homaye Tabesh - Admin Styles
+ *
+ * @package HomayeTabesh
+ * @since 1.0.0
+ */
+
+.homaye-tabesh-admin {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+}
+
+.homaye-tabesh-admin h1,
+.homaye-tabesh-admin h2,
+.homaye-tabesh-admin h3 {
+    color: #23282d;
+}
+
+.homaye-tabesh-admin .notice {
+    margin: 15px 0;
+    padding: 12px;
+}
+
+.homaye-tabesh-settings {
+    max-width: 800px;
+    margin: 20px 0;
+}
+
+.homaye-tabesh-settings .form-table th {
+    width: 200px;
+    font-weight: 600;
+}
+
+.homaye-tabesh-settings .form-table td {
+    padding: 15px 10px;
+}
+
+.homaye-tabesh-persona-score {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.homaye-tabesh-persona-score.high {
+    background-color: #46b450;
+}
+
+.homaye-tabesh-persona-score.medium {
+    background-color: #ffb900;
+}
+
+.homaye-tabesh-persona-score.low {
+    background-color: #dc3232;
+}

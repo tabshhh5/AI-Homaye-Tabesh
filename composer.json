@@ -1,0 +1,27 @@
+{
+  "name": "tabshhh4/homaye-tabesh",
+  "description": "WordPress plugin for AI-powered user behavior analysis and personalization with Gemini 2.5 Flash",
+  "type": "wordpress-plugin",
+  "license": "GPL-3.0-or-later",
+  "version": "1.0.0",
+  "require": {
+    "php": ">=8.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "HomayeTabesh\\": "includes/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "HomayeTabesh\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "platform": {
+      "php": "8.2"
+    },
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+}
