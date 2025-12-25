@@ -46,14 +46,15 @@ class HT_WooCommerce_Context
             ];
         }
 
-        $cart = WC()->cart;
-        
-        if (!$cart) {
+        // Ensure WooCommerce is fully loaded
+        if (!function_exists('WC') || !WC()->cart) {
             return [
                 'status' => 'unavailable',
                 'message' => 'Cart not initialized',
             ];
         }
+        
+        $cart = WC()->cart;
 
         if ($cart->is_empty()) {
             return [

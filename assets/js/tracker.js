@@ -139,7 +139,7 @@
             const documentHeight = document.documentElement.scrollHeight;
             const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
             
-            const scrollDepth = Math.round(((scrollTop + windowHeight) / documentHeight) * 100);
+            const scrollDepth = Math.min(100, Math.round(((scrollTop + windowHeight) / documentHeight) * 100));
             
             // Track new scroll depth milestones
             if (scrollDepth > maxScrollDepth) {

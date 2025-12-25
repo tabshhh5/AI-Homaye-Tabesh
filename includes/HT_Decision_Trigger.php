@@ -30,6 +30,11 @@ class HT_Decision_Trigger
      * Time window for activity check (seconds)
      */
     private const ACTIVITY_WINDOW = 300; // 5 minutes
+    
+    /**
+     * Minimum dwell time for high-intent detection (milliseconds)
+     */
+    private const HIGH_INTENT_DWELL_TIME = 5000; // 5 seconds
 
     /**
      * Check if AI decision should be triggered
@@ -146,7 +151,7 @@ class HT_Decision_Trigger
                 // High-value event types
                 if ($event['event_type'] === 'module_dwell') {
                     $dwell_time = $element_data['dwell_time'] ?? 0;
-                    if ($dwell_time > 5000) { // 5+ seconds
+                    if ($dwell_time > self::HIGH_INTENT_DWELL_TIME) {
                         return true;
                     }
                 }
@@ -166,7 +171,7 @@ class HT_Decision_Trigger
     private function build_trigger_context(string $user_identifier, array $recent_events): array
     {
         $persona_manager = HT_Core::instance()->memory;
-        $woo_context = new HT_WooCommerce_Context();
+        $woo_context = HT_Core::instance()->woo_context;
 
         return [
             'user' => $user_identifier,
@@ -283,7 +288,7 @@ class HT_Decision_Trigger
 
         // Add WooCommerce context
         if (isset($context['woocommerce'])) {
-            $woo_context = new HT_WooCommerce_Context();
+            $woo_context = HT_Core::instance()->woo_context;
             $prompt .= $woo_context->format_for_ai($context['woocommerce']) . "\n\n";
         }
 

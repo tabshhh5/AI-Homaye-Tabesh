@@ -53,7 +53,20 @@ class HT_Persona_Manager
      */
     public function __construct()
     {
-        $this->divi_bridge = new HT_Divi_Bridge();
+        // Initialize Divi Bridge on first use
+    }
+    
+    /**
+     * Get Divi Bridge instance
+     *
+     * @return HT_Divi_Bridge
+     */
+    private function get_divi_bridge(): HT_Divi_Bridge
+    {
+        if ($this->divi_bridge === null) {
+            $this->divi_bridge = HT_Core::instance()->divi_bridge;
+        }
+        return $this->divi_bridge;
     }
 
     /**
@@ -167,15 +180,14 @@ class HT_Persona_Manager
         $scores = [];
         
         // Get weights from Divi Bridge
-        if ($this->divi_bridge) {
-            $weights = $this->divi_bridge->get_persona_weights($element_class, $element_data);
-            
-            // Adjust weights based on event type
-            $event_multiplier = $this->get_event_multiplier($event_type);
-            
-            foreach ($weights as $persona => $weight) {
-                $scores[$persona] = (int) round($weight * $event_multiplier);
-            }
+        $divi_bridge = $this->get_divi_bridge();
+        $weights = $divi_bridge->get_persona_weights($element_class, $element_data);
+        
+        // Adjust weights based on event type
+        $event_multiplier = $this->get_event_multiplier($event_type);
+        
+        foreach ($weights as $persona => $weight) {
+            $scores[$persona] = (int) round($weight * $event_multiplier);
         }
         
         // Apply rule-based scoring
@@ -316,9 +328,10 @@ class HT_Persona_Manager
             $scores[$row['persona_type']] = (int) $row['score'];
         }
         
-        // Cache the results
+        // Cache the results if not empty
         if (!empty($scores)) {
-            $this->cache_persona_scores($user_identifier);
+            $transient_key = 'ht_persona_' . md5($user_identifier);
+            set_transient($transient_key, $scores, HOUR_IN_SECONDS);
         }
 
         return $scores;
