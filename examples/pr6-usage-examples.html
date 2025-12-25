@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نمونه استفاده از Parallel UI</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .example {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-right: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        .example h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            direction: ltr;
+            text-align: left;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .result {
+            background: #d4edda;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border: 1px solid #c3e6cb;
+            display: none;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 نمونه‌های استفاده از Parallel UI</h1>
+        <p>این صفحه مثال‌های عملی برای کار با سیستم Parallel UI را نشان می‌دهد.</p>
+
+        <!-- مثال 1: باز/بسته کردن -->
+        <div class="example">
+            <h3>۱. باز و بسته کردن سایدبار</h3>
+            <p>با دکمه‌های زیر سایدبار را کنترل کنید:</p>
+            <button onclick="openSidebar()">باز کردن سایدبار</button>
+            <button onclick="closeSidebar()">بستن سایدبار</button>
+            <button onclick="toggleSidebar()">Toggle سایدبار</button>
+            <div id="result1" class="result"></div>
+            
+            <div class="code-block">
+<pre>
+function openSidebar() {
+    document.dispatchEvent(new CustomEvent('homa:open-sidebar'));
+}
+
+function closeSidebar() {
+    document.dispatchEvent(new CustomEvent('homa:close-sidebar'));
+}
+
+function toggleSidebar() {
+    document.dispatchEvent(new CustomEvent('homa:toggle-sidebar'));
+}
+</pre>
+            </div>
+        </div>
+
+        <!-- مثال 2: Highlight کردن عناصر -->
+        <div class="example">
+            <h3>۲. Highlight کردن عناصر</h3>
+            <p>این عناصر را highlight کنید:</p>
+            <button id="test-btn-1" onclick="highlightMe('test-btn-1')">دکمه ۱</button>
+            <button id="test-btn-2" onclick="highlightMe('test-btn-2')">دکمه ۲</button>
+            <button id="test-btn-3" onclick="highlightMe('test-btn-3')">دکمه ۳</button>
+            <div id="result2" class="result"></div>
+            
+            <div class="code-block">
+<pre>
+function highlightMe(elementId) {
+    if (window.HomaOrchestrator) {
+        window.HomaOrchestrator.executeOnSite(
+            '#' + elementId, 
+            'highlight'
+        );
+    }
+}
+</pre>
+            </div>
+        </div>
+
+        <!-- مثال 3: دریافت وضعیت -->
+        <div class="example">
+            <h3>۳. دریافت وضعیت Viewport</h3>
+            <p>اطلاعات فعلی viewport را ببینید:</p>
+            <button onclick="getViewportState()">دریافت وضعیت</button>
+            <div id="result3" class="result"></div>
+            
+            <div class="code-block">
+<pre>
+function getViewportState() {
+    const state = window.HomaOrchestrator.getViewportState();
+    console.log(state);
+}
+</pre>
+            </div>
+        </div>
+
+        <!-- مثال 4: ارسال تغییرات فرم -->
+        <div class="example">
+            <h3>۴. ارسال تغییرات فرم به سایدبار</h3>
+            <p>این فرم ساده را تغییر دهید:</p>
+            <form id="test-form">
+                <input type="text" id="book_title" placeholder="عنوان کتاب" style="padding: 10px; width: 300px; margin: 5px;">
+                <input type="number" id="pages" placeholder="تعداد صفحات" style="padding: 10px; width: 200px; margin: 5px;">
+                <input type="number" id="quantity" placeholder="تیراژ" style="padding: 10px; width: 200px; margin: 5px;">
+            </form>
+            <button onclick="sendFormChanges()">ارسال تغییرات به سایدبار</button>
+            <div id="result4" class="result"></div>
+            
+            <div class="code-block">
+<pre>
+function sendFormChanges() {
+    const title = document.getElementById('book_title').value;
+    const pages = document.getElementById('pages').value;
+    
+    window.dispatchEvent(new CustomEvent('homa_site_updated', {
+        detail: {
+            fieldId: 'book_title',
+            value: title,
+            fieldType: 'text'
+        }
+    }));
+}
+</pre>
+            </div>
+        </div>
+
+        <!-- مثال 5: فراخوانی API -->
+        <div class="example">
+            <h3>۵. ارسال پیام به هما (REST API)</h3>
+            <p>یک پیام تستی به هما ارسال کنید:</p>
+            <textarea id="test-message" rows="3" style="width: 100%; padding: 10px; direction: rtl;" placeholder="پیام خود را بنویسید...">سلام، می‌خواهم کتابم را چاپ کنم</textarea>
+            <button onclick="sendTestMessage()">ارسال به هما</button>
+            <div id="result5" class="result"></div>
+            
+            <div class="code-block">
+<pre>
+async function sendTestMessage() {
+    const message = document.getElementById('test-message').value;
+    
+    const response = await fetch('/wp-json/homaye/v1/ai/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-WP-Nonce': homayeParallelUIConfig.nonce
+        },
+        body: JSON.stringify({
+            message: message,
+            context: { page: window.location.pathname }
+        })
+    });
+    
+    const data = await response.json();
+    console.log(data);
+}
+</pre>
+            </div>
+        </div>
+
+        <!-- مثال 6: Scroll به عنصر -->
+        <div class="example">
+            <h3>۶. اسکرول به عناصر مختلف</h3>
+            <button onclick="scrollToElement('h1')">اسکرول به عنوان صفحه</button>
+            <button onclick="scrollToElement('#test-form')">اسکرول به فرم</button>
+            <div id="result6" class="result"></div>
+            
+            <div class="code-block">
+<pre>
+function scrollToElement(selector) {
+    if (window.HomaOrchestrator) {
+        window.HomaOrchestrator.executeOnSite(
+            selector, 
+            'scroll'
+        );
+    }
+}
+</pre>
+            </div>
+        </div>
+
+        <!-- مثال 7: LocalStorage -->
+        <div class="example">
+            <h3>۷. مدیریت Chat History در LocalStorage</h3>
+            <button onclick="getChatHistory()">دریافت History</button>
+            <button onclick="clearChatHistory()">پاک کردن History</button>
+            <div id="result7" class="result"></div>
+            
+            <div class="code-block">
+<pre>
+function getChatHistory() {
+    const history = localStorage.getItem('homa_chat_history');
+    console.log(JSON.parse(history));
+}
+
+function clearChatHistory() {
+    localStorage.removeItem('homa_chat_history');
+}
+</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Example 1: باز/بسته کردن
+        function openSidebar() {
+            document.dispatchEvent(new CustomEvent('homa:open-sidebar'));
+            showResult('result1', 'سایدبار باز شد!');
+        }
+
+        function closeSidebar() {
+            document.dispatchEvent(new CustomEvent('homa:close-sidebar'));
+            showResult('result1', 'سایدبار بسته شد!');
+        }
+
+        function toggleSidebar() {
+            document.dispatchEvent(new CustomEvent('homa:toggle-sidebar'));
+            showResult('result1', 'وضعیت سایدبار تغییر کرد!');
+        }
+
+        // Example 2: Highlight
+        function highlightMe(elementId) {
+            if (window.HomaOrchestrator) {
+                window.HomaOrchestrator.executeOnSite('#' + elementId, 'highlight');
+                showResult('result2', `عنصر ${elementId} highlight شد!`);
+            } else {
+                showResult('result2', 'HomaOrchestrator در دسترس نیست!', true);
+            }
+        }
+
+        // Example 3: وضعیت
+        function getViewportState() {
+            if (window.HomaOrchestrator) {
+                const state = window.HomaOrchestrator.getViewportState();
+                showResult('result3', `
+                    <strong>وضعیت Viewport:</strong><br>
+                    - باز است: ${state.isOpen ? 'بله' : 'خیر'}<br>
+                    - عرض سایت: ${state.siteViewWidth}px<br>
+                    - عرض سایدبار: ${state.sidebarViewWidth}px<br>
+                    - عرض کل: ${state.totalWidth}px
+                `);
+            } else {
+                showResult('result3', 'HomaOrchestrator در دسترس نیست!', true);
+            }
+        }
+
+        // Example 4: فرم
+        function sendFormChanges() {
+            const title = document.getElementById('book_title').value;
+            const pages = document.getElementById('pages').value;
+            const quantity = document.getElementById('quantity').value;
+
+            if (!title && !pages && !quantity) {
+                showResult('result4', 'لطفاً حداقل یک فیلد را پر کنید!', true);
+                return;
+            }
+
+            if (title) {
+                window.dispatchEvent(new CustomEvent('homa_site_updated', {
+                    detail: { fieldId: 'book_title', value: title, fieldType: 'text' }
+                }));
+            }
+
+            showResult('result4', 'تغییرات فرم به سایدبار ارسال شد!');
+        }
+
+        // Example 5: API
+        async function sendTestMessage() {
+            const message = document.getElementById('test-message').value;
+            
+            if (!message.trim()) {
+                showResult('result5', 'لطفاً یک پیام بنویسید!', true);
+                return;
+            }
+
+            showResult('result5', 'در حال ارسال...');
+
+            try {
+                const response = await fetch('/wp-json/homaye/v1/ai/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-WP-Nonce': window.homayeParallelUIConfig?.nonce || ''
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        context: { page: window.location.pathname }
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('result5', `
+                        <strong>پاسخ دریافت شد:</strong><br>
+                        ${data.response}
+                    `);
+                } else {
+                    showResult('result5', 'خطا در دریافت پاسخ', true);
+                }
+            } catch (error) {
+                showResult('result5', `خطا: ${error.message}`, true);
+            }
+        }
+
+        // Example 6: Scroll
+        function scrollToElement(selector) {
+            if (window.HomaOrchestrator) {
+                window.HomaOrchestrator.executeOnSite(selector, 'scroll');
+                showResult('result6', `اسکرول به ${selector}`);
+            } else {
+                showResult('result6', 'HomaOrchestrator در دسترس نیست!', true);
+            }
+        }
+
+        // Example 7: LocalStorage
+        function getChatHistory() {
+            const history = localStorage.getItem('homa_chat_history');
+            if (history) {
+                const parsed = JSON.parse(history);
+                showResult('result7', `
+                    <strong>Chat History:</strong><br>
+                    تعداد پیام‌ها: ${parsed.messages?.length || 0}<br>
+                    پرسونا: ${parsed.persona || 'تعیین نشده'}
+                `);
+            } else {
+                showResult('result7', 'هیچ history‌ای وجود ندارد');
+            }
+        }
+
+        function clearChatHistory() {
+            localStorage.removeItem('homa_chat_history');
+            showResult('result7', 'Chat history پاک شد!');
+        }
+
+        // Helper
+        function showResult(elementId, message, isError = false) {
+            const el = document.getElementById(elementId);
+            el.style.display = 'block';
+            el.innerHTML = message;
+            if (isError) {
+                el.classList.add('error');
+            } else {
+                el.classList.remove('error');
+            }
+            
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 5000);
+        }
+
+        // Auto-detect form changes
+        document.getElementById('test-form')?.addEventListener('input', (e) => {
+            console.log('Form changed:', e.target.id, '=', e.target.value);
+        });
+    </script>
+</body>
+</html>
