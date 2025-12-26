@@ -249,6 +249,183 @@ class HT_Knowledge_Base
     }
 
     /**
+     * Sync plugin metadata to knowledge base (Commit 3 - Auto KB Synchronizer)
+     * 
+     * @param array $metadata متادیتای استخراج شده از افزونه‌ها
+     * @return bool موفقیت عملیات
+     */
+    public function sync_plugin_metadata_to_kb(array $metadata): bool
+    {
+        if (empty($metadata)) {
+            return false;
+        }
+
+        // تبدیل متادیتا به فرمت قابل استفاده در knowledge base
+        $plugin_facts = $this->convert_metadata_to_facts($metadata);
+
+        // ذخیره در فایل JSON
+        $result = $this->save_rules('plugin_metadata', $plugin_facts);
+
+        // همچنین ذخیره در دیتابیس برای دسترسی سریع
+        if ($result) {
+            update_option('ht_plugin_facts_cache', $plugin_facts);
+            update_option('ht_plugin_facts_last_sync', current_time('mysql'));
+        }
+
+        return $result;
+    }
+
+    /**
+     * Convert metadata to structured facts
+     * 
+     * @param array $metadata متادیتا
+     * @return array فکت‌های ساختاریافته
+     */
+    private function convert_metadata_to_facts(array $metadata): array
+    {
+        $facts = [
+            'metadata' => [
+                'last_updated' => current_time('mysql'),
+                'plugins_count' => count($metadata),
+            ],
+            'plugins' => [],
+        ];
+
+        foreach ($metadata as $plugin_slug => $data) {
+            $plugin_info = [
+                'slug' => $plugin_slug,
+                'extraction_time' => $data['extraction_time'] ?? current_time('mysql'),
+                'features' => $data['capabilities']['features'] ?? [],
+                'facts' => $data['facts'] ?? [],
+                'settings' => [],
+            ];
+
+            // استخراج تنظیمات مهم
+            if (!empty($data['options_human'])) {
+                // فقط 20 تنظیم اول را نگه دار
+                $plugin_info['settings'] = array_slice($data['options_human'], 0, 20, true);
+            }
+
+            $facts['plugins'][$plugin_slug] = $plugin_info;
+        }
+
+        return $facts;
+    }
+
+    /**
+     * Get plugin facts from knowledge base
+     * 
+     * @return array فکت‌های افزونه‌ها
+     */
+    public function get_plugin_facts(): array
+    {
+        // ابتدا از کش
+        $cached = get_option('ht_plugin_facts_cache', null);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        // از فایل JSON
+        $facts = $this->load_rules('plugin_metadata');
+        
+        return $facts ?: [];
+    }
+
+    /**
+     * Get formatted plugin facts for AI prompt
+     * 
+     * @return string متن فرمت شده برای AI
+     */
+    public function get_plugin_facts_for_ai(): string
+    {
+        $facts = $this->get_plugin_facts();
+
+        if (empty($facts) || !isset($facts['plugins'])) {
+            return '';
+        }
+
+        $prompt = "=== اطلاعات افزونه‌های سایت ===\n\n";
+
+        foreach ($facts['plugins'] as $slug => $plugin) {
+            $prompt .= "افزونه: " . strtoupper($slug) . "\n";
+
+            // قابلیت‌ها
+            if (!empty($plugin['features'])) {
+                $prompt .= "قابلیت‌ها: " . implode(', ', $plugin['features']) . "\n";
+            }
+
+            // فکت‌ها
+            if (!empty($plugin['facts'])) {
+                foreach ($plugin['facts'] as $key => $value) {
+                    if (is_array($value)) {
+                        $prompt .= "- {$key}: " . implode(', ', array_slice($value, 0, 5)) . "\n";
+                    } else {
+                        $prompt .= "- {$key}: {$value}\n";
+                    }
+                }
+            }
+
+            // تنظیمات مهم
+            if (!empty($plugin['settings'])) {
+                $count = 0;
+                foreach ($plugin['settings'] as $key => $setting) {
+                    $prompt .= "- {$setting}\n";
+                    $count++;
+                    if ($count >= 5) break; // فقط 5 تنظیم مهم
+                }
+            }
+
+            $prompt .= "\n";
+        }
+
+        return $prompt;
+    }
+
+    /**
+     * Auto-sync metadata to knowledge base (scheduled job)
+     * 
+     * @return void
+     */
+    public static function auto_sync_metadata(): void
+    {
+        $metadata_engine = new \HomayeTabesh\HT_Metadata_Mining_Engine();
+        $metadata = $metadata_engine->get_metadata_for_ai();
+
+        if (!empty($metadata)) {
+            $kb = new self();
+            $result = $kb->sync_plugin_metadata_to_kb($metadata);
+
+            if ($result) {
+                error_log('Homa KB: Auto-synced ' . count($metadata) . ' plugins to knowledge base');
+            }
+        }
+    }
+
+    /**
+     * Initialize default knowledge base on plugin activation
+     * 
+     * @return void
+     */
+    public function init_default_knowledge_base(): void
+    {
+        // اگر قبلاً اجرا شده باشد
+        if (get_option('ht_kb_initialized', false)) {
+            return;
+        }
+
+        // ایجاد دایرکتوری knowledge-base
+        if (!is_dir($this->kb_dir)) {
+            wp_mkdir_p($this->kb_dir);
+        }
+
+        // همگام‌سازی اولیه متادیتای افزونه‌ها
+        self::auto_sync_metadata();
+
+        update_option('ht_kb_initialized', true);
+    }
+}
+
+    /**
      * Initialize default knowledge base files
      *
      * @return void

@@ -24,11 +24,17 @@ class HT_Metadata_Mining_Engine
     private HT_Plugin_Scanner $scanner;
 
     /**
+     * Safety sanitizer
+     */
+    private HT_Safety_Data_Sanitizer $sanitizer;
+
+    /**
      * Constructor
      */
     public function __construct()
     {
         $this->scanner = new HT_Plugin_Scanner();
+        $this->sanitizer = new HT_Safety_Data_Sanitizer();
     }
 
     /**
@@ -402,14 +408,16 @@ class HT_Metadata_Mining_Engine
         $cached = $this->get_cached_metadata();
         
         if ($cached !== null) {
-            return $cached;
+            // سانیتایز قبل از ارسال به AI (Commit 5)
+            return $this->sanitizer->sanitize_metadata($cached);
         }
 
         // استخراج و کش کردن
         $metadata = $this->mine_all_plugins_metadata();
         $this->cache_metadata($metadata);
         
-        return $metadata;
+        // سانیتایز قبل از ارسال به AI (Commit 5)
+        return $this->sanitizer->sanitize_metadata($metadata);
     }
 
     /**
@@ -435,5 +443,9 @@ class HT_Metadata_Mining_Engine
         $metadata = $engine->refresh_metadata();
         
         error_log('Homa Plugin Metadata: Refreshed ' . count($metadata) . ' plugins');
+
+        // Auto-sync to knowledge base (Commit 3)
+        $kb = new HT_Knowledge_Base();
+        $kb->sync_plugin_metadata_to_kb($metadata);
     }
 }

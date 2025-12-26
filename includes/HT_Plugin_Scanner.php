@@ -278,7 +278,7 @@ class HT_Plugin_Scanner
 
         $plugin_options = [];
         foreach ($options as $option) {
-            // حذف داده‌های حساس (کلیدهای API، پسوردها)
+            // حذف داده‌های حساس (کلیدهای API، پسوردها) - اولیه
             if ($this->is_sensitive_option($option['option_name'])) {
                 continue;
             }
@@ -286,7 +286,9 @@ class HT_Plugin_Scanner
             $plugin_options[$option['option_name']] = $option['option_value'];
         }
 
-        return $plugin_options;
+        // فیلتر پیشرفته با Sanitizer (Commit 5)
+        $sanitizer = new HT_Safety_Data_Sanitizer();
+        return $sanitizer->filter_plugin_options($plugin_options);
     }
 
     /**

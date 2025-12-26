@@ -34,6 +34,11 @@ class HT_Dynamic_Context_Generator
     private HT_Hook_Observer_Service $hook_observer;
 
     /**
+     * Safety sanitizer (Commit 5)
+     */
+    private HT_Safety_Data_Sanitizer $sanitizer;
+
+    /**
      * Constructor
      */
     public function __construct()
@@ -41,6 +46,7 @@ class HT_Dynamic_Context_Generator
         $this->mining_engine = new HT_Metadata_Mining_Engine();
         $this->scanner = new HT_Plugin_Scanner();
         $this->hook_observer = new HT_Hook_Observer_Service();
+        $this->sanitizer = new HT_Safety_Data_Sanitizer();
     }
 
     /**
@@ -59,26 +65,47 @@ class HT_Dynamic_Context_Generator
         // 2. اطلاعات متادیتای استخراج شده
         $context .= $this->generate_metadata_context();
 
-        // 3. رویدادهای اخیر
+        // 3. فکت‌های Knowledge Base (Commit 3 Enhancement)
+        $context .= $this->generate_kb_facts_context();
+
+        // 4. رویدادهای اخیر
         $context .= $this->generate_recent_events_context();
 
-        // 4. وضعیت WooCommerce
+        // 5. وضعیت WooCommerce
         if ($this->scanner->has_woocommerce()) {
             $context .= $this->generate_woocommerce_context();
         }
 
-        // 5. وضعیت Tabesh
+        // 6. وضعیت Tabesh
         if ($this->scanner->has_tabesh()) {
             $context .= $this->generate_tabesh_context();
         }
 
-        // 6. کانتکست اضافی
+        // 7. کانتکست اضافی
         if (!empty($additional_context)) {
             $context .= "\n=== اطلاعات اضافی ===\n";
             $context .= $this->format_additional_context($additional_context);
         }
 
-        return $context;
+        // سانیتایز نهایی قبل از ارسال به AI (Commit 5)
+        return $this->sanitizer->sanitize_context($context);
+    }
+
+    /**
+     * Generate knowledge base facts context
+     * 
+     * @return string
+     */
+    private function generate_kb_facts_context(): string
+    {
+        $kb = new HT_Knowledge_Base();
+        $facts_text = $kb->get_plugin_facts_for_ai();
+
+        if (empty($facts_text)) {
+            return "";
+        }
+
+        return $facts_text . "\n";
     }
 
     /**

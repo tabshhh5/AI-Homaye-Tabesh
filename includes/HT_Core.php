@@ -258,6 +258,12 @@ final class HT_Core
         HT_Metadata_Mining_Engine::schedule_metadata_refresh();
         add_action('homa_refresh_plugin_metadata', [HT_Metadata_Mining_Engine::class, 'metadata_refresh_cron']);
 
+        // Schedule knowledge base auto-sync (PR13)
+        if (!wp_next_scheduled('homa_auto_sync_kb')) {
+            wp_schedule_event(time(), 'twicedaily', 'homa_auto_sync_kb');
+        }
+        add_action('homa_auto_sync_kb', [HT_Knowledge_Base::class, 'auto_sync_metadata']);
+
         // Schedule feedback SMS on order completion (PR12)
         add_action('woocommerce_order_status_completed', [$this, 'handle_order_completed']);
 
