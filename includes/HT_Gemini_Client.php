@@ -336,4 +336,180 @@ class HT_Gemini_Client
             return $this->get_fallback_response($e->getMessage());
         }
     }
+
+    /**
+     * Generate response with visual commands
+     * Instructs Gemini to include visual guidance commands in response
+     * 
+     * @param string $prompt User prompt
+     * @param array $context Additional context
+     * @param array $page_elements Available page elements for targeting
+     * @return array Response with visual commands
+     */
+    public function generate_with_visual_commands(
+        string $prompt,
+        array $context = [],
+        array $page_elements = []
+    ): array {
+        $system_instruction = $this->build_visual_guidance_instruction($context, $page_elements);
+        
+        try {
+            $payload = [
+                'contents' => [
+                    [
+                        'parts' => [
+                            ['text' => $prompt]
+                        ]
+                    ]
+                ],
+                'systemInstruction' => [
+                    'parts' => [
+                        ['text' => $system_instruction]
+                    ]
+                ],
+                'generationConfig' => [
+                    'temperature' => 0.7,
+                    'topK' => 40,
+                    'topP' => 0.95,
+                    'maxOutputTokens' => 2048,
+                ]
+            ];
+
+            $response = $this->make_request($payload);
+            $parsed = $this->parse_response($response);
+
+            // Extract visual commands from response
+            if ($parsed['success'] && !empty($parsed['raw_text'])) {
+                $visual_commands = $this->extract_visual_commands($parsed['raw_text']);
+                $parsed['visual_commands'] = $visual_commands;
+            }
+
+            return $parsed;
+        } catch (\Exception $e) {
+            error_log('Homaye Tabesh - Visual Commands Generation Error: ' . $e->getMessage());
+            return $this->get_fallback_response($e->getMessage());
+        }
+    }
+
+    /**
+     * Build system instruction for visual guidance
+     * 
+     * @param array $context Context data
+     * @param array $page_elements Available page elements
+     * @return string System instruction
+     */
+    private function build_visual_guidance_instruction(array $context, array $page_elements): string
+    {
+        $instruction = "شما یک دستیار هوشمند هستید که می‌تواند کاربر را در صفحه وب به صورت بصری راهنمایی کنید.\n\n";
+        
+        $instruction .= "قابلیت‌های شما:\n";
+        $instruction .= "1. هایلایت کردن المان‌های صفحه\n";
+        $instruction .= "2. اسکرول کردن صفحه به المان خاص\n";
+        $instruction .= "3. نمایش تولتیپ راهنما\n\n";
+
+        $instruction .= "دستورات بصری:\n";
+        $instruction .= "- برای هایلایت: ACTION: HIGHLIGHT[selector]\n";
+        $instruction .= "- برای اسکرول: ACTION: SCROLL_TO[selector]\n";
+        $instruction .= "- برای تولتیپ: ACTION: TOOLTIP[selector, message]\n\n";
+
+        if (!empty($page_elements)) {
+            $instruction .= "المان‌های موجود در صفحه:\n";
+            foreach ($page_elements as $element) {
+                $instruction .= sprintf(
+                    "- %s: selector = %s\n",
+                    $element['label'] ?? 'نامشخص',
+                    $element['selector'] ?? ''
+                );
+            }
+            $instruction .= "\n";
+        }
+
+        $instruction .= "مثال:\n";
+        $instruction .= "کاربر: چطوری سفارش بدم؟\n";
+        $instruction .= "شما: برای ثبت سفارش، روی دکمه زیر کلیک کنید.\nACTION: HIGHLIGHT[.checkout-button]\nACTION: SCROLL_TO[.checkout-button]\n\n";
+
+        $instruction .= "نکات مهم:\n";
+        $instruction .= "1. فقط زمانی از دستورات بصری استفاده کنید که واقعاً لازم باشد\n";
+        $instruction .= "2. از selector های معتبر CSS استفاده کنید\n";
+        $instruction .= "3. دستورات را در خط جداگانه بعد از متن پاسخ بنویسید\n";
+        $instruction .= "4. در هر پاسخ حداکثر 2-3 دستور بصری استفاده کنید\n\n";
+
+        // Add context
+        if (!empty($context['page_type'])) {
+            $instruction .= "صفحه فعلی: " . $context['page_type'] . "\n";
+        }
+
+        if (!empty($context['user_intent'])) {
+            $instruction .= "هدف احتمالی کاربر: " . $context['user_intent'] . "\n";
+        }
+
+        return $instruction;
+    }
+
+    /**
+     * Extract visual commands from AI response text
+     * 
+     * @param string $text Response text
+     * @return array Visual commands
+     */
+    private function extract_visual_commands(string $text): array
+    {
+        $commands = [];
+
+        // Pattern 1: ACTION: HIGHLIGHT[selector]
+        if (preg_match_all('/ACTION:\s*HIGHLIGHT\[([^\]]+)\]/i', $text, $matches)) {
+            foreach ($matches[1] as $selector) {
+                $commands[] = [
+                    'action_type' => 'ui_interaction',
+                    'command' => 'HIGHLIGHT',
+                    'target_selector' => trim($selector)
+                ];
+            }
+        }
+
+        // Pattern 2: ACTION: SCROLL_TO[selector]
+        if (preg_match_all('/ACTION:\s*SCROLL_TO\[([^\]]+)\]/i', $text, $matches)) {
+            foreach ($matches[1] as $selector) {
+                $commands[] = [
+                    'action_type' => 'ui_interaction',
+                    'command' => 'SCROLL_TO',
+                    'target_selector' => trim($selector)
+                ];
+            }
+        }
+
+        // Pattern 3: ACTION: TOOLTIP[selector, message]
+        if (preg_match_all('/ACTION:\s*TOOLTIP\[([^,]+),\s*([^\]]+)\]/i', $text, $matches)) {
+            for ($i = 0; $i < count($matches[1]); $i++) {
+                $commands[] = [
+                    'action_type' => 'ui_interaction',
+                    'command' => 'SHOW_TOOLTIP',
+                    'target_selector' => trim($matches[1][$i]),
+                    'message' => trim($matches[2][$i])
+                ];
+            }
+        }
+
+        return $commands;
+    }
+
+    /**
+     * Clean response text by removing visual command syntax
+     * 
+     * @param string $text Text with visual commands
+     * @return string Clean text
+     */
+    public function clean_visual_commands(string $text): string
+    {
+        // Remove all visual command patterns
+        $text = preg_replace('/ACTION:\s*HIGHLIGHT\[[^\]]+\]/i', '', $text);
+        $text = preg_replace('/ACTION:\s*SCROLL_TO\[[^\]]+\]/i', '', $text);
+        $text = preg_replace('/ACTION:\s*TOOLTIP\[[^\]]+\]/i', '', $text);
+        
+        // Clean up extra whitespace
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        $text = trim($text);
+        
+        return $text;
+    }
 }

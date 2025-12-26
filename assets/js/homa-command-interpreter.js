@@ -197,6 +197,7 @@
                     break;
 
                 case 'SHOW_TOOLTIP':
+                case 'TOOLTIP':
                     this.showTooltip(command);
                     break;
 
@@ -208,10 +209,21 @@
                     this.fillField(command);
                     break;
 
+                case 'GLOW':
+                    this.glowElement(command);
+                    break;
+
+                case 'PULSE':
+                    this.pulseElement(command);
+                    break;
+
                 default:
                     // Try to use HomaUIExecutor if available
                     if (window.HomaUIExecutor) {
                         window.HomaUIExecutor.executeAction(command);
+                    } else if (window.HomaVisualGuidance) {
+                        // Use Visual Guidance engine (PR10)
+                        window.HomaVisualGuidance.executeAction(command);
                     } else {
                         console.warn('[Homa Command Interpreter] Unknown UI command:', cmd);
                     }
@@ -289,27 +301,74 @@
             const selector = command.target_selector || command.selector || command.target;
             if (!selector) return;
 
-            // Use HomaUIExecutor if available
+            // Use HomaVisualGuidance if available (PR10)
+            if (window.HomaVisualGuidance) {
+                window.HomaVisualGuidance.executeAction({
+                    command: 'HIGHLIGHT',
+                    target_selector: selector,
+                    duration: command.duration || 5000
+                });
+                return;
+            }
+
+            // Fallback to HomaUIExecutor
             if (window.HomaUIExecutor) {
                 window.HomaUIExecutor.executeAction({
                     type: 'highlight_element',
                     target: selector
                 });
-            } else {
-                // Fallback to direct DOM manipulation
-                const element = document.querySelector(selector);
-                if (element) {
-                    element.classList.add('homa-pulse');
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    setTimeout(() => {
-                        element.classList.remove('homa-pulse');
-                    }, 3000);
-                }
+                return;
+            }
+
+            // Last resort: direct DOM manipulation
+            const element = document.querySelector(selector);
+            if (element) {
+                element.classList.add('homa-pulse');
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => {
+                    element.classList.remove('homa-pulse');
+                }, 3000);
             }
 
             // Emit highlight event
             if (window.Homa) {
                 window.Homa.emit('ui:highlight', { selector });
+            }
+        }
+
+        /**
+         * Glow element (PR10)
+         * 
+         * @param {Object} command - Command with target selector
+         */
+        glowElement(command) {
+            const selector = command.target_selector || command.selector || command.target;
+            if (!selector) return;
+
+            if (window.HomaVisualGuidance) {
+                window.HomaVisualGuidance.executeAction({
+                    command: 'GLOW',
+                    target_selector: selector,
+                    duration: command.duration || 5000
+                });
+            }
+        }
+
+        /**
+         * Pulse element (PR10)
+         * 
+         * @param {Object} command - Command with target selector
+         */
+        pulseElement(command) {
+            const selector = command.target_selector || command.selector || command.target;
+            if (!selector) return;
+
+            if (window.HomaVisualGuidance) {
+                window.HomaVisualGuidance.executeAction({
+                    command: 'PULSE',
+                    target_selector: selector,
+                    duration: command.duration || 5000
+                });
             }
         }
 
@@ -358,7 +417,15 @@
          * @param {Object} command - Command with message
          */
         showTooltip(command) {
-            if (window.HomaUIExecutor) {
+            // Use HomaVisualGuidance for better tooltip (PR10)
+            if (window.HomaVisualGuidance) {
+                window.HomaVisualGuidance.executeAction({
+                    command: 'SHOW_TOOLTIP',
+                    target_selector: command.target_selector || command.target,
+                    message: command.message || command.text,
+                    duration: command.duration || 10000
+                });
+            } else if (window.HomaUIExecutor) {
                 window.HomaUIExecutor.executeAction({
                     type: 'show_tooltip',
                     target: command.target_selector || command.target,
