@@ -247,6 +247,46 @@ final class HT_Core
     public ?HT_Feedback_REST_API $feedback_api = null;
 
     /**
+     * BlackBox Logger (PR18 - Advanced Logging)
+     */
+    public ?HT_BlackBox_Logger $blackbox_logger = null;
+
+    /**
+     * Fallback Engine (PR18 - Offline Mode & Resilience)
+     */
+    public ?HT_Fallback_Engine $fallback_engine = null;
+
+    /**
+     * Query Optimizer (PR18 - Database Caching)
+     */
+    public ?HT_Query_Optimizer $query_optimizer = null;
+
+    /**
+     * Data Exporter (PR18 - Import/Export System)
+     */
+    public ?HT_Data_Exporter $data_exporter = null;
+
+    /**
+     * Background Processor (PR18 - Heavy Task Handler)
+     */
+    public ?HT_Background_Processor $background_processor = null;
+
+    /**
+     * Numerical Formatter (PR18 - Anti-Hallucination Shield)
+     */
+    public ?HT_Numerical_Formatter $numerical_formatter = null;
+
+    /**
+     * Auto Cleanup (PR18 - Self-Optimization)
+     */
+    public ?HT_Auto_Cleanup $auto_cleanup = null;
+
+    /**
+     * Resilience REST API (PR18 - Resilience Endpoints)
+     */
+    public ?HT_Resilience_REST_API $resilience_api = null;
+
+    /**
      * Get singleton instance
      *
      * @return self
@@ -345,6 +385,16 @@ final class HT_Core
         $this->feedback_system = new HT_Feedback_System();
         $this->feedback_api = new HT_Feedback_REST_API();
 
+        // Initialize PR18 - Resilience & Knowledge Transfer
+        $this->blackbox_logger = new HT_BlackBox_Logger();
+        $this->fallback_engine = new HT_Fallback_Engine();
+        $this->query_optimizer = new HT_Query_Optimizer();
+        $this->data_exporter = new HT_Data_Exporter();
+        $this->background_processor = new HT_Background_Processor();
+        $this->numerical_formatter = new HT_Numerical_Formatter();
+        $this->auto_cleanup = new HT_Auto_Cleanup();
+        $this->resilience_api = new HT_Resilience_REST_API();
+
         // Initialize default knowledge base on first load
         add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
         
@@ -428,6 +478,33 @@ final class HT_Core
             $feedback_system->cleanup_old_feedback(90); // Clean resolved feedback older than 90 days
         });
 
+        // Schedule BlackBox log cleanup (PR18)
+        $this->blackbox_logger->schedule_cleanup();
+        add_action('ht_blackbox_cleanup', function() {
+            $logger = new HT_BlackBox_Logger();
+            $logger->clean_old_logs();
+        });
+
+        // Schedule query cache warmup (PR18)
+        $this->query_optimizer->schedule_warmup();
+        add_action('ht_cache_warmup', function() {
+            $optimizer = new HT_Query_Optimizer();
+            $optimizer->warmup_cache();
+        });
+
+        // Schedule background job processing (PR18)
+        add_action('ht_process_background_jobs', function() {
+            $processor = new HT_Background_Processor();
+            $processor->process_jobs();
+        });
+
+        // Schedule auto-cleanup analysis (PR18)
+        $this->auto_cleanup->schedule_analysis();
+        add_action('ht_auto_cleanup_analysis', function() {
+            $cleanup = new HT_Auto_Cleanup();
+            $cleanup->run_analysis();
+        });
+
         // Hook 404 tracking for behavior analysis (PR16)
         add_action('template_redirect', [$this, 'track_404_errors']);
     }
@@ -449,6 +526,7 @@ final class HT_Core
         add_action('rest_api_init', [$this->chat_capabilities, 'register_endpoints']); // PR15
         add_action('rest_api_init', [$this->security_alerts, 'register_endpoints']); // PR15
         add_action('rest_api_init', [$this->access_control, 'register_endpoints']); // PR16
+        add_action('rest_api_init', [$this->resilience_api, 'register_endpoints']); // PR18
         
         // Initialize Vault REST API (PR7)
         HT_Vault_REST_API::init();

@@ -237,6 +237,42 @@ class HT_Activator
             $feedback_system = new HT_Feedback_System();
             $feedback_system->create_table();
         }
+
+        // Create BlackBox Logger table (PR18)
+        if (class_exists('\HomayeTabesh\HT_BlackBox_Logger')) {
+            $logger = new HT_BlackBox_Logger();
+            $logger->create_table();
+        }
+
+        // Create Fallback Engine leads table (PR18)
+        if (class_exists('\HomayeTabesh\HT_Fallback_Engine')) {
+            $engine = new HT_Fallback_Engine();
+            $engine->create_table();
+        }
+
+        // Create Data Exporter snapshots table (PR18)
+        if (class_exists('\HomayeTabesh\HT_Data_Exporter')) {
+            $exporter = new HT_Data_Exporter();
+            $exporter->create_table();
+        }
+
+        // Create Background Processor jobs table (PR18)
+        if (class_exists('\HomayeTabesh\HT_Background_Processor')) {
+            $processor = new HT_Background_Processor();
+            $processor->create_table();
+        }
+
+        // Create Auto Cleanup reports table (PR18)
+        if (class_exists('\HomayeTabesh\HT_Auto_Cleanup')) {
+            $cleanup = new HT_Auto_Cleanup();
+            $cleanup->create_table();
+        }
+
+        // Add indexes for performance (PR18)
+        if (class_exists('\HomayeTabesh\HT_Query_Optimizer')) {
+            $optimizer = new HT_Query_Optimizer();
+            $optimizer->add_indexes();
+        }
     }
 
     /**
