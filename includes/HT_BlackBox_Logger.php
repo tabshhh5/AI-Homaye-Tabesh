@@ -95,74 +95,82 @@ class HT_BlackBox_Logger
      */
     public function log_ai_transaction(array $data): int|false
     {
-        global $wpdb;
+        // Use try-catch to prevent errors from cascading
+        try {
+            global $wpdb;
 
-        $defaults = [
-            'log_type' => 'ai_transaction',
-            'user_id' => get_current_user_id() ?: null,
-            'user_identifier' => $this->get_user_identifier(),
-            'user_prompt' => '',
-            'raw_prompt' => '',
-            'ai_response' => '',
-            'raw_response' => '',
-            'latency_ms' => null,
-            'tokens_used' => null,
-            'model_name' => 'gemini-2.0-flash-exp',
-            'context_data' => null,
-            'error_message' => null,
-            'error_trace' => null,
-            'environment_state' => null,
-            'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN',
-            'ip_address' => $this->get_client_ip(),
-            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-            'status' => 'success',
-        ];
+            $defaults = [
+                'log_type' => 'ai_transaction',
+                'user_id' => $this->safe_get_user_id(),
+                'user_identifier' => $this->get_user_identifier(),
+                'user_prompt' => '',
+                'raw_prompt' => '',
+                'ai_response' => '',
+                'raw_response' => '',
+                'latency_ms' => null,
+                'tokens_used' => null,
+                'model_name' => 'gemini-2.0-flash-exp',
+                'context_data' => null,
+                'error_message' => null,
+                'error_trace' => null,
+                'environment_state' => null,
+                'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN',
+                'ip_address' => $this->get_client_ip(),
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                'status' => 'success',
+            ];
 
-        $log_data = wp_parse_args($data, $defaults);
+            $log_data = wp_parse_args($data, $defaults);
 
-        // Mask sensitive data
-        $log_data['user_prompt'] = $this->mask_sensitive_data($log_data['user_prompt']);
-        $log_data['ai_response'] = $this->mask_sensitive_data($log_data['ai_response']);
+            // Mask sensitive data
+            $log_data['user_prompt'] = $this->mask_sensitive_data($log_data['user_prompt']);
+            $log_data['ai_response'] = $this->mask_sensitive_data($log_data['ai_response']);
 
-        // Serialize complex data
-        if (is_array($log_data['context_data'])) {
-            $log_data['context_data'] = wp_json_encode($log_data['context_data']);
-        }
-        if (is_array($log_data['environment_state'])) {
-            $log_data['environment_state'] = wp_json_encode($log_data['environment_state']);
-        }
+            // Serialize complex data - use simple json_encode instead of wp_json_encode
+            if (is_array($log_data['context_data'])) {
+                $log_data['context_data'] = json_encode($log_data['context_data']);
+            }
+            if (is_array($log_data['environment_state'])) {
+                $log_data['environment_state'] = json_encode($log_data['environment_state']);
+            }
 
-        $result = $wpdb->insert(
-            $this->table_name,
-            $log_data,
-            [
-                '%s', // log_type
-                '%d', // user_id
-                '%s', // user_identifier
-                '%s', // user_prompt
-                '%s', // raw_prompt
-                '%s', // ai_response
-                '%s', // raw_response
-                '%d', // latency_ms
-                '%d', // tokens_used
-                '%s', // model_name
-                '%s', // context_data
-                '%s', // error_message
-                '%s', // error_trace
-                '%s', // environment_state
-                '%s', // request_method
-                '%s', // ip_address
-                '%s', // user_agent
-                '%s', // status
-            ]
-        );
+            $result = $wpdb->insert(
+                $this->table_name,
+                $log_data,
+                [
+                    '%s', // log_type
+                    '%d', // user_id
+                    '%s', // user_identifier
+                    '%s', // user_prompt
+                    '%s', // raw_prompt
+                    '%s', // ai_response
+                    '%s', // raw_response
+                    '%d', // latency_ms
+                    '%d', // tokens_used
+                    '%s', // model_name
+                    '%s', // context_data
+                    '%s', // error_message
+                    '%s', // error_trace
+                    '%s', // environment_state
+                    '%s', // request_method
+                    '%s', // ip_address
+                    '%s', // user_agent
+                    '%s', // status
+                ]
+            );
 
-        if ($result === false) {
-            error_log('HT_BlackBox_Logger: Failed to insert log - ' . $wpdb->last_error);
+            if ($result === false) {
+                // Use pure PHP error_log to avoid triggering HT_Error_Handler recursion
+                error_log('HT_BlackBox_Logger: Failed to insert log - ' . $wpdb->last_error);
+                return false;
+            }
+
+            return (int) $wpdb->insert_id;
+        } catch (\Throwable $e) {
+            // Emergency logging without HT_Error_Handler to prevent recursion
+            error_log('HT_BlackBox_Logger: Critical error in log_ai_transaction - ' . $e->getMessage());
             return false;
         }
-
-        return (int) $wpdb->insert_id;
     }
 
     /**
@@ -174,18 +182,24 @@ class HT_BlackBox_Logger
      */
     public function log_error(\Throwable $exception, array $additional_context = []): int|false
     {
-        $environment_state = $this->capture_environment_state();
+        try {
+            $environment_state = $this->capture_environment_state();
 
-        $data = [
-            'log_type' => 'error',
-            'error_message' => $exception->getMessage(),
-            'error_trace' => $exception->getTraceAsString(),
-            'environment_state' => $environment_state,
-            'context_data' => $additional_context,
-            'status' => 'error',
-        ];
+            $data = [
+                'log_type' => 'error',
+                'error_message' => $exception->getMessage(),
+                'error_trace' => $exception->getTraceAsString(),
+                'environment_state' => $environment_state,
+                'context_data' => $additional_context,
+                'status' => 'error',
+            ];
 
-        return $this->log_ai_transaction($data);
+            return $this->log_ai_transaction($data);
+        } catch (\Throwable $e) {
+            // Emergency logging without recursion
+            error_log('HT_BlackBox_Logger: Failed to log error - ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -195,22 +209,51 @@ class HT_BlackBox_Logger
      */
     private function capture_environment_state(): array
     {
-        return [
-            'php_version' => PHP_VERSION,
-            'wp_version' => get_bloginfo('version'),
-            'plugin_version' => HT_VERSION ?? 'unknown',
-            'memory_usage' => memory_get_usage(true),
-            'memory_peak' => memory_get_peak_usage(true),
-            'time' => current_time('mysql'),
-            'timezone' => wp_timezone_string(),
-            'is_admin' => is_admin(),
-            'is_ajax' => wp_doing_ajax(),
-            'is_cron' => wp_doing_cron(),
-            'active_plugins' => get_option('active_plugins', []),
-            'theme' => wp_get_theme()->get('Name'),
-            'locale' => get_locale(),
-            'site_url' => get_site_url(),
-        ];
+        // Wrap all WordPress function calls in try-catch to prevent cascading errors
+        try {
+            return [
+                'php_version' => PHP_VERSION,
+                'wp_version' => function_exists('get_bloginfo') ? get_bloginfo('version') : 'unknown',
+                'plugin_version' => HT_VERSION ?? 'unknown',
+                'memory_usage' => memory_get_usage(true),
+                'memory_peak' => memory_get_peak_usage(true),
+                'time' => gmdate('Y-m-d H:i:s'), // Use UTC time for consistency
+                'timezone' => function_exists('wp_timezone_string') ? wp_timezone_string() : date_default_timezone_get(),
+                'is_admin' => function_exists('is_admin') ? is_admin() : false,
+                'is_ajax' => function_exists('wp_doing_ajax') ? wp_doing_ajax() : false,
+                'is_cron' => function_exists('wp_doing_cron') ? wp_doing_cron() : false,
+                'active_plugins' => function_exists('get_option') ? get_option('active_plugins', []) : [],
+                'theme' => function_exists('wp_get_theme') ? wp_get_theme()->get('Name') : 'unknown',
+                'locale' => function_exists('get_locale') ? get_locale() : 'unknown',
+                'site_url' => function_exists('get_site_url') ? get_site_url() : 'unknown',
+            ];
+        } catch (\Throwable $e) {
+            // Return minimal state if WordPress functions fail
+            return [
+                'php_version' => PHP_VERSION,
+                'memory_usage' => memory_get_usage(true),
+                'time' => gmdate('Y-m-d H:i:s'),
+                'error' => 'Failed to capture full state: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Safely get current user ID without triggering errors
+     *
+     * @return int|null User ID or null
+     */
+    private function safe_get_user_id(): ?int
+    {
+        try {
+            if (!function_exists('get_current_user_id')) {
+                return null;
+            }
+            $user_id = get_current_user_id();
+            return $user_id > 0 ? $user_id : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
@@ -241,18 +284,24 @@ class HT_BlackBox_Logger
      */
     private function get_user_identifier(): string
     {
-        if (get_current_user_id()) {
-            return 'user_' . get_current_user_id();
+        try {
+            $user_id = $this->safe_get_user_id();
+            if ($user_id) {
+                return 'user_' . $user_id;
+            }
+
+            // Generate fingerprint for guests
+            $components = [
+                $_SERVER['HTTP_USER_AGENT'] ?? '',
+                $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '',
+                $this->get_client_ip(),
+            ];
+
+            return 'guest_' . md5(implode('|', $components));
+        } catch (\Throwable $e) {
+            // Fallback to simple identifier
+            return 'guest_' . md5($_SERVER['REMOTE_ADDR'] ?? 'unknown');
         }
-
-        // Generate fingerprint for guests
-        $components = [
-            $_SERVER['HTTP_USER_AGENT'] ?? '',
-            $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '',
-            $this->get_client_ip(),
-        ];
-
-        return 'guest_' . md5(implode('|', $components));
     }
 
     /**

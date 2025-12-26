@@ -20,9 +20,10 @@ namespace HomayeTabesh;
 class HT_Error_Handler
 {
     /**
-     * Recursion guard - prevents infinite loops in error handling
+     * Static logging lock - prevents recursion during log operations
+     * This is a critical safety mechanism to prevent stack overflow
      */
-    private static bool $is_processing = false;
+    private static bool $is_logging = false;
 
     /**
      * Log an error message to WordPress debug.log
@@ -34,12 +35,13 @@ class HT_Error_Handler
      */
     public static function log_error(string $message, string $context = 'general', $data = null): void
     {
-        // Prevent infinite recursion in error logging
-        if (self::$is_processing) {
+        // Critical: Check logging lock FIRST before any other operations
+        if (self::$is_logging) {
             return;
         }
 
-        self::$is_processing = true;
+        // Set lock immediately to prevent recursion
+        self::$is_logging = true;
 
         try {
             $log_message = sprintf(
@@ -52,10 +54,11 @@ class HT_Error_Handler
                 $log_message .= ' | Data: ' . self::format_data($data);
             }
 
-            // Use WordPress error_log - only log once
+            // Use pure PHP error_log to avoid WordPress hooks that might recurse
             error_log($log_message);
         } finally {
-            self::$is_processing = false;
+            // Always release lock
+            self::$is_logging = false;
         }
     }
 
@@ -68,12 +71,13 @@ class HT_Error_Handler
      */
     public static function log_exception(\Throwable $exception, string $context = 'general'): void
     {
-        // Prevent infinite recursion
-        if (self::$is_processing) {
+        // Critical: Check logging lock FIRST
+        if (self::$is_logging) {
             return;
         }
 
-        self::$is_processing = true;
+        // Set lock immediately
+        self::$is_logging = true;
 
         try {
             $message = sprintf(
@@ -84,14 +88,14 @@ class HT_Error_Handler
                 $exception->getLine()
             );
 
-            // Temporarily release lock to allow log_error to work
-            self::$is_processing = false;
+            // Add trace to message directly - don't call log_error to avoid complexity
+            $log_message = $message . ' | Trace: ' . $exception->getTraceAsString();
             
-            self::log_error($message, $context, [
-                'trace' => $exception->getTraceAsString()
-            ]);
+            // Use pure PHP error_log
+            error_log('[Homaye Tabesh - ' . $context . '] ' . $log_message);
         } finally {
-            self::$is_processing = false;
+            // Always release lock
+            self::$is_logging = false;
         }
     }
 
