@@ -142,10 +142,10 @@ class HT_Global_Observer_Core
                 return;
             }
 
-        // فیلتر کردن داده‌های حساس
-        if ($this->is_sensitive_data($option)) {
-            return;
-        }
+            // فیلتر کردن داده‌های حساس
+            if ($this->is_sensitive_data($option)) {
+                return;
+            }
 
             // ثبت تغییر در لاگ
             $this->log_change('option_updated', [
