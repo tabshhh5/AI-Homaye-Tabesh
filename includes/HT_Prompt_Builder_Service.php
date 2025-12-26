@@ -34,12 +34,19 @@ class HT_Prompt_Builder_Service
 
     /**
      * Constructor
+     * 
+     * @param HT_Knowledge_Base $knowledge_base Knowledge base instance
+     * @param HT_Persona_Manager $persona_manager Persona manager instance
+     * @param HT_WooCommerce_Context $woo_context WooCommerce context instance
      */
-    public function __construct()
-    {
-        $this->knowledge_base = HT_Core::instance()->knowledge;
-        $this->persona_manager = HT_Core::instance()->memory;
-        $this->woo_context = HT_Core::instance()->woo_context;
+    public function __construct(
+        HT_Knowledge_Base $knowledge_base,
+        HT_Persona_Manager $persona_manager,
+        HT_WooCommerce_Context $woo_context
+    ) {
+        $this->knowledge_base = $knowledge_base;
+        $this->persona_manager = $persona_manager;
+        $this->woo_context = $woo_context;
     }
 
     /**

@@ -49,15 +49,27 @@ class HT_Inference_Engine
 
     /**
      * Constructor
+     * 
+     * @param HT_Gemini_Client $brain Gemini client instance
+     * @param HT_Knowledge_Base $knowledge Knowledge base instance
+     * @param HT_Persona_Manager $memory Persona manager instance
+     * @param HT_WooCommerce_Context $woo_context WooCommerce context instance
      */
-    public function __construct()
-    {
-        $this->prompt_builder = new HT_Prompt_Builder_Service();
+    public function __construct(
+        HT_Gemini_Client $brain,
+        HT_Knowledge_Base $knowledge,
+        HT_Persona_Manager $memory,
+        HT_WooCommerce_Context $woo_context
+    ) {
+        // Create dependencies that don't need HT_Core
+        $this->prompt_builder = new HT_Prompt_Builder_Service($knowledge, $memory, $woo_context);
         $this->action_parser = new HT_Action_Parser();
-        $this->brain = HT_Core::instance()->brain;
-        $this->knowledge = HT_Core::instance()->knowledge;
-        $this->memory = HT_Core::instance()->memory;
-        $this->woo_context = HT_Core::instance()->woo_context;
+        
+        // Store passed dependencies
+        $this->brain = $brain;
+        $this->knowledge = $knowledge;
+        $this->memory = $memory;
+        $this->woo_context = $woo_context;
     }
 
     /**

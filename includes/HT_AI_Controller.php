@@ -29,11 +29,16 @@ class HT_AI_Controller
 
     /**
      * Constructor
+     * 
+     * @param HT_Inference_Engine $inference_engine Inference engine instance
+     * @param HT_Prompt_Builder_Service $prompt_builder Prompt builder instance
      */
-    public function __construct()
-    {
-        $this->inference_engine = new HT_Inference_Engine();
-        $this->prompt_builder = new HT_Prompt_Builder_Service();
+    public function __construct(
+        HT_Inference_Engine $inference_engine,
+        HT_Prompt_Builder_Service $prompt_builder
+    ) {
+        $this->inference_engine = $inference_engine;
+        $this->prompt_builder = $prompt_builder;
     }
 
     /**

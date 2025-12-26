@@ -38,11 +38,29 @@ class HT_Gemini_Client
 
     /**
      * Constructor
+     * 
+     * Note: Constructor must not call WordPress functions as they may not be available yet.
+     * API key is loaded on-demand via get_api_key() method.
      */
     public function __construct()
     {
-        $this->api_key = get_option('ht_gemini_api_key', '');
+        // Defer WordPress function calls - check WooCommerce availability
         $this->woocommerce_active = class_exists('WooCommerce');
+        // Do NOT call get_option() here - API key loaded on-demand
+        $this->api_key = '';
+    }
+    
+    /**
+     * Get API key (lazy loading)
+     * 
+     * @return string
+     */
+    private function get_api_key(): string
+    {
+        if (empty($this->api_key) && function_exists('get_option')) {
+            $this->api_key = get_option('ht_gemini_api_key', '');
+        }
+        return $this->api_key;
     }
 
     /**
@@ -64,7 +82,8 @@ class HT_Gemini_Client
             }
         }
 
-        if (empty($this->api_key)) {
+        $api_key = $this->get_api_key();
+        if (empty($api_key)) {
             return $this->get_fallback_response('API key not configured');
         }
 
@@ -321,7 +340,8 @@ class HT_Gemini_Client
      */
     private function make_request(array $payload): array
     {
-        $url = self::API_BASE_URL . self::MODEL_NAME . ':generateContent?key=' . $this->api_key;
+        $api_key = $this->get_api_key();
+        $url = self::API_BASE_URL . self::MODEL_NAME . ':generateContent?key=' . $api_key;
 
         $response = wp_remote_post($url, [
             'headers' => [
@@ -462,7 +482,8 @@ class HT_Gemini_Client
         string $system_instruction,
         array $schema = []
     ): array {
-        if (empty($this->api_key)) {
+        $api_key = $this->get_api_key();
+        if (empty($api_key)) {
             return $this->get_fallback_response('API key not configured');
         }
 
