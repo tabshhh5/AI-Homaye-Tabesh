@@ -217,7 +217,7 @@ class HT_BlackBox_Logger
                 'plugin_version' => HT_VERSION ?? 'unknown',
                 'memory_usage' => memory_get_usage(true),
                 'memory_peak' => memory_get_peak_usage(true),
-                'time' => date('Y-m-d H:i:s'), // Use PHP date instead of current_time
+                'time' => gmdate('Y-m-d H:i:s'), // Use UTC time for consistency
                 'timezone' => function_exists('wp_timezone_string') ? wp_timezone_string() : date_default_timezone_get(),
                 'is_admin' => function_exists('is_admin') ? is_admin() : false,
                 'is_ajax' => function_exists('wp_doing_ajax') ? wp_doing_ajax() : false,
@@ -232,7 +232,7 @@ class HT_BlackBox_Logger
             return [
                 'php_version' => PHP_VERSION,
                 'memory_usage' => memory_get_usage(true),
-                'time' => date('Y-m-d H:i:s'),
+                'time' => gmdate('Y-m-d H:i:s'),
                 'error' => 'Failed to capture full state: ' . $e->getMessage(),
             ];
         }
@@ -250,7 +250,7 @@ class HT_BlackBox_Logger
                 return null;
             }
             $user_id = get_current_user_id();
-            return $user_id ?: null;
+            return $user_id > 0 ? $user_id : null;
         } catch (\Throwable $e) {
             return null;
         }

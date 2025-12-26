@@ -20,14 +20,8 @@ namespace HomayeTabesh;
 class HT_Error_Handler
 {
     /**
-     * Recursion guard - prevents infinite loops in error handling
-     * This is a critical safety mechanism to prevent stack overflow
-     */
-    private static bool $is_processing = false;
-
-    /**
      * Static logging lock - prevents recursion during log operations
-     * Separate from $is_processing to allow fine-grained control
+     * This is a critical safety mechanism to prevent stack overflow
      */
     private static bool $is_logging = false;
 
