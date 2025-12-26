@@ -350,8 +350,7 @@ class HT_Support_Ticketing
                            "دسته: {$analysis['category_label']}\n" .
                            "شماره تیکت: #{$ticket_id}";
                 
-                // ارسال SMS ساده (بدون الگو)
-                // Note: این متد باید در Homa_SMS_Provider قابل دسترسی باشد
+                $sms_provider->send_simple_sms($admin_phone, $message);
             }
         }
 

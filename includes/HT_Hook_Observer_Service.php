@@ -253,10 +253,7 @@ class HT_Hook_Observer_Service
      */
     private function update_homa_knowledge(string $fact): void
     {
-        // به‌روزرسانی پایگاه دانش هما
-        $kb = new HT_Knowledge_Base();
-        
-        // افزودن به دانش موقت (برای استفاده در مکالمه‌های فعلی)
+        // به‌روزرسانی دانش موقت (برای استفاده در مکالمه‌های فعلی)
         $current_facts = get_transient('homa_recent_facts') ?: [];
         $current_facts[] = [
             'fact' => $fact,

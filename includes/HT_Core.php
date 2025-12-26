@@ -245,9 +245,7 @@ final class HT_Core
         add_action('homa_refresh_plugin_metadata', [HT_Metadata_Mining_Engine::class, 'metadata_refresh_cron']);
 
         // Schedule feedback SMS on order completion (PR12)
-        add_action('woocommerce_order_status_completed', function($order_id) {
-            $this->retention_engine->schedule_feedback_sms($order_id);
-        });
+        add_action('woocommerce_order_status_completed', [$this, 'handle_order_completed']);
 
         // Hook observer cleanup (PR12)
         if (!wp_next_scheduled('homa_cleanup_hook_events')) {
@@ -283,6 +281,17 @@ final class HT_Core
 
         // Initialize persona tracking
         add_action('init', [$this->memory, 'init_session']);
+    }
+
+    /**
+     * Handle order completion hook (PR12)
+     * 
+     * @param int $order_id Order ID
+     * @return void
+     */
+    public function handle_order_completed(int $order_id): void
+    {
+        $this->retention_engine->schedule_feedback_sms($order_id);
     }
 
     /**

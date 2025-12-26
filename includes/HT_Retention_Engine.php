@@ -95,8 +95,7 @@ class HT_Retention_Engine
                        "از خریدت ممنونیم! نظرت درباره سفارش #{$order_id} چیه؟\n" .
                        "خوشحال میشیم بازخوردت رو بشنویم.";
             
-            // Note: نیاز به متد عمومی در SMS Provider
-            $result = false; // Placeholder
+            $result = $sms_provider->send_simple_sms($phone, $message);
         }
 
         if ($result) {
@@ -217,7 +216,7 @@ class HT_Retention_Engine
                            "دلمون برات تنگ شده! 🌟\n" .
                            "برای خرید بعدیت یک تخفیف ویژه داریم.";
                 
-                $result = false; // Placeholder
+                $result = $sms_provider->send_simple_sms($phone, $message);
             }
 
             if ($result) {
