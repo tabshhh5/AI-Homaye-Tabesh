@@ -62,7 +62,7 @@ class HT_Resilience_REST_API
         register_rest_route('homaye-tabesh/v1', '/offline/collect-lead', [
             'methods' => 'POST',
             'callback' => [$this, 'collect_lead'],
-            'permission_callback' => '__return_true',
+            'permission_callback' => [$this, 'lead_collection_permission_check'],
         ]);
 
         // Cache endpoints
@@ -560,5 +560,57 @@ class HT_Resilience_REST_API
     public function admin_permission_check(): bool
     {
         return current_user_can('manage_options');
+    }
+
+    /**
+     * Permission check for lead collection (rate limited)
+     */
+    public function lead_collection_permission_check(): bool
+    {
+        // Check for basic referrer validation
+        $referrer = wp_get_referer();
+        $site_url = get_site_url();
+        
+        // Must come from same site
+        if (!$referrer || strpos($referrer, $site_url) !== 0) {
+            return false;
+        }
+
+        // Rate limiting: max 3 submissions per IP per hour
+        $ip = $this->get_client_ip();
+        $transient_key = 'ht_lead_rate_' . md5($ip);
+        $count = (int) get_transient($transient_key);
+        
+        if ($count >= 3) {
+            return false;
+        }
+        
+        set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
+        return true;
+    }
+
+    /**
+     * Get client IP address
+     */
+    private function get_client_ip(): string
+    {
+        $headers = [
+            'HTTP_CF_CONNECTING_IP',
+            'HTTP_X_FORWARDED_FOR',
+            'HTTP_X_REAL_IP',
+            'REMOTE_ADDR',
+        ];
+
+        foreach ($headers as $header) {
+            if (!empty($_SERVER[$header])) {
+                $ip = $_SERVER[$header];
+                if (strpos($ip, ',') !== false) {
+                    $ip = explode(',', $ip)[0];
+                }
+                return trim($ip);
+            }
+        }
+
+        return 'unknown';
     }
 }

@@ -368,7 +368,14 @@ class HT_Query_Optimizer
                 );
 
                 if (!$index_exists) {
-                    $wpdb->query("ALTER TABLE {$table} ADD INDEX {$index['name']} ({$index['column']})");
+                    // Sanitize index and column names
+                    $safe_index_name = sanitize_key($index['name']);
+                    $safe_column_name = sanitize_key($index['column']);
+                    
+                    // Validate that table name matches expected pattern
+                    if (strpos($table, $wpdb->prefix . 'homa_') === 0) {
+                        $wpdb->query("ALTER TABLE {$table} ADD INDEX {$safe_index_name} ({$safe_column_name})");
+                    }
                 }
             }
         }

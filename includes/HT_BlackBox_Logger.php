@@ -226,8 +226,8 @@ class HT_BlackBox_Logger
                 if ($type === 'password' && isset($matches[2])) {
                     return $matches[1] . ': ****';
                 }
-                $length = strlen($matches[0]);
-                return str_repeat('*', min($length, 12));
+                // Use consistent mask length to prevent length-based disclosure
+                return '********';
             }, $text);
         }
 

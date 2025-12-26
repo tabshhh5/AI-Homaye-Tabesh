@@ -504,9 +504,14 @@ class HT_Data_Exporter
 
     /**
      * Encrypt data
+     * 
+     * Note: This implementation uses basic AES-256-CBC encryption.
+     * For enhanced security in production, consider using authenticated encryption
+     * (AEAD modes) or adding HMAC verification.
      */
     private function encrypt_data(string $data): string
     {
+        // TODO: Add HMAC authentication to prevent padding oracle attacks
         // Use WordPress secret key as encryption key
         $key = substr(wp_salt('auth'), 0, 32);
         $iv = openssl_random_pseudo_bytes(16);
@@ -519,6 +524,10 @@ class HT_Data_Exporter
 
     /**
      * Decrypt data
+     * 
+     * Note: This implementation uses basic AES-256-CBC decryption.
+     * For enhanced security in production, consider using authenticated encryption
+     * (AEAD modes) or adding HMAC verification.
      */
     private function decrypt_data(string $data): string|false
     {

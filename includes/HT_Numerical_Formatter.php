@@ -368,6 +368,9 @@ class HT_Numerical_Formatter
 
     /**
      * Convert Gregorian to Jalali date
+     * 
+     * Note: This is a simplified conversion for display purposes only.
+     * For production use, consider integrating a proper Jalali library.
      *
      * @param int $timestamp Unix timestamp
      * @return string Jalali date
@@ -375,7 +378,7 @@ class HT_Numerical_Formatter
     private function to_jalali(int $timestamp): string
     {
         // Simple Jalali conversion (basic implementation)
-        // For production, use a proper Jalali library
+        // TODO: Use a proper Jalali library for accurate conversion
         $g_y = (int) date('Y', $timestamp);
         $g_m = (int) date('m', $timestamp);
         $g_d = (int) date('d', $timestamp);
@@ -393,6 +396,9 @@ class HT_Numerical_Formatter
 
     /**
      * Simple Gregorian to Jalali converter
+     * 
+     * WARNING: This is a highly simplified approximation.
+     * For accurate Jalali conversion, use a proper library.
      */
     private function gregorian_to_jalali(int $g_y, int $g_m, int $g_d): array
     {
