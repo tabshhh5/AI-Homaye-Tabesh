@@ -105,7 +105,8 @@ add_action('plugins_loaded', function () {
 register_activation_hook(__FILE__, function () {
     try {
         if (!class_exists('HomayeTabesh\HT_Activator')) {
-            \HomayeTabesh\HT_Error_Handler::log_error('HT_Activator class not found during activation', 'activation');
+            // Use native error_log as HT_Error_Handler may not be available yet
+            error_log('[Homaye Tabesh - activation] HT_Activator class not found during activation');
             wp_die(
                 esc_html__('افزونه همای تابش به درستی نصب نشده است. لطفاً از نسخه Release استفاده کنید یا دستورات نصب را دنبال کنید.', 'homaye-tabesh'),
                 esc_html__('خطای نصب افزونه', 'homaye-tabesh'),
@@ -114,7 +115,13 @@ register_activation_hook(__FILE__, function () {
         }
         \HomayeTabesh\HT_Activator::activate();
     } catch (\Throwable $e) {
-        \HomayeTabesh\HT_Error_Handler::log_exception($e, 'activation');
+        // Use HT_Error_Handler if available, otherwise fallback to error_log
+        if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
+            \HomayeTabesh\HT_Error_Handler::log_exception($e, 'activation');
+        } else {
+            error_log('[Homaye Tabesh - activation] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+        }
+        
         wp_die(
             sprintf(
                 esc_html__('خطا در فعال‌سازی افزونه همای تابش: %s', 'homaye-tabesh'),
@@ -133,7 +140,12 @@ register_deactivation_hook(__FILE__, function () {
             \HomayeTabesh\HT_Deactivator::deactivate();
         }
     } catch (\Throwable $e) {
-        \HomayeTabesh\HT_Error_Handler::log_exception($e, 'deactivation');
+        // Use HT_Error_Handler if available, otherwise fallback to error_log
+        if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
+            \HomayeTabesh\HT_Error_Handler::log_exception($e, 'deactivation');
+        } else {
+            error_log('[Homaye Tabesh - deactivation] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+        }
         // Don't wp_die on deactivation to allow users to deactivate broken plugins
     }
 });

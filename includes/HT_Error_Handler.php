@@ -74,7 +74,8 @@ class HT_Error_Handler
     private static function format_data($data): string
     {
         if (is_array($data) || is_object($data)) {
-            return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $encoded = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return $encoded !== false ? $encoded : 'JSON_ENCODE_ERROR';
         }
 
         return (string) $data;
