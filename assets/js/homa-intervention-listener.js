@@ -48,8 +48,10 @@
             // Generate new session ID
             const sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             
-            // Set cookie
-            document.cookie = `homa_session_id=${sessionId}; path=/; max-age=86400`; // 24 hours
+            // Set cookie with secure flags
+            const isSecure = window.location.protocol === 'https:';
+            const cookieString = `homa_session_id=${sessionId}; path=/; max-age=86400; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+            document.cookie = cookieString;
             
             return sessionId;
         }
