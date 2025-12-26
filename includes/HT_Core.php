@@ -24,62 +24,62 @@ final class HT_Core
     /**
      * Gemini AI client
      */
-    public HT_Gemini_Client $brain;
+    public ?HT_Gemini_Client $brain = null;
 
     /**
      * Telemetry tracking system
      */
-    public HT_Telemetry $eyes;
+    public ?HT_Telemetry $eyes = null;
 
     /**
      * Persona management system
      */
-    public HT_Persona_Manager $memory;
+    public ?HT_Persona_Manager $memory = null;
 
     /**
      * Knowledge base controller
      */
-    public HT_Knowledge_Base $knowledge;
+    public ?HT_Knowledge_Base $knowledge = null;
     
     /**
      * WooCommerce context provider
      */
-    public HT_WooCommerce_Context $woo_context;
+    public ?HT_WooCommerce_Context $woo_context = null;
     
     /**
      * Divi bridge controller
      */
-    public HT_Divi_Bridge $divi_bridge;
+    public ?HT_Divi_Bridge $divi_bridge = null;
     
     /**
      * Decision trigger system
      */
-    public HT_Decision_Trigger $decision_trigger;
+    public ?HT_Decision_Trigger $decision_trigger = null;
 
     /**
      * Inference engine
      */
-    public HT_Inference_Engine $inference_engine;
+    public ?HT_Inference_Engine $inference_engine = null;
 
     /**
      * AI Controller
      */
-    public HT_AI_Controller $ai_controller;
+    public ?HT_AI_Controller $ai_controller = null;
 
     /**
      * Perception Bridge (Core Intelligence Layer)
      */
-    public HT_Perception_Bridge $perception_bridge;
+    public ?HT_Perception_Bridge $perception_bridge = null;
 
     /**
      * Cart Manager (Action & Conversion Engine)
      */
-    public HT_Cart_Manager $cart_manager;
+    public ?HT_Cart_Manager $cart_manager = null;
 
     /**
      * Parallel UI Manager (React Sidebar)
      */
-    public HT_Parallel_UI $parallel_ui;
+    public ?HT_Parallel_UI $parallel_ui = null;
 
      /**
      * Admin interface
@@ -342,8 +342,26 @@ final class HT_Core
         $this->woo_context      = $this->safe_init(fn() => new HT_WooCommerce_Context(), 'HT_WooCommerce_Context');
         $this->divi_bridge      = $this->safe_init(fn() => new HT_Divi_Bridge(), 'HT_Divi_Bridge');
         $this->decision_trigger = $this->safe_init(fn() => new HT_Decision_Trigger(), 'HT_Decision_Trigger');
-        $this->inference_engine = $this->safe_init(fn() => new HT_Inference_Engine(), 'HT_Inference_Engine');
-        $this->ai_controller    = $this->safe_init(fn() => new HT_AI_Controller(), 'HT_AI_Controller');
+        
+        // Initialize inference engine with required dependencies to avoid circular dependency
+        $this->inference_engine = $this->safe_init(function() {
+            // Only create if all dependencies are available
+            if ($this->brain && $this->knowledge && $this->memory && $this->woo_context) {
+                return new HT_Inference_Engine($this->brain, $this->knowledge, $this->memory, $this->woo_context);
+            }
+            return null;
+        }, 'HT_Inference_Engine');
+        
+        // Initialize AI controller with dependencies after inference engine is created
+        $this->ai_controller = $this->safe_init(function() {
+            // Only create if dependencies are available
+            if ($this->inference_engine && $this->knowledge && $this->memory && $this->woo_context) {
+                $prompt_builder = new HT_Prompt_Builder_Service($this->knowledge, $this->memory, $this->woo_context);
+                return new HT_AI_Controller($this->inference_engine, $prompt_builder);
+            }
+            return null;
+        }, 'HT_AI_Controller');
+        
         $this->perception_bridge = $this->safe_init(fn() => new HT_Perception_Bridge($this), 'HT_Perception_Bridge');
         $this->cart_manager     = $this->safe_init(fn() => new HT_Cart_Manager($this), 'HT_Cart_Manager');
         $this->parallel_ui      = $this->safe_init(fn() => new HT_Parallel_UI($this), 'HT_Parallel_UI');
