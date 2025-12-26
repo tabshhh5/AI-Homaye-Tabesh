@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR12 Validation - Post-Purchase & Plugin Inspector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .test-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .test-section h2 {
+            color: #764ba2;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .test-case {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+
+        .test-case h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .test-input {
+            margin: 15px 0;
+        }
+
+        .test-input label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .test-input input,
+        .test-input select,
+        .test-input textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .test-input input:focus,
+        .test-input select:focus,
+        .test-input textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .test-input textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .test-button:active {
+            transform: translateY(0);
+        }
+
+        .result-box {
+            background: #e8f4f8;
+            border: 2px solid #4a90e2;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .result-box.show {
+            display: block;
+        }
+
+        .result-box.success {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .result-box.error {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .result-box h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .result-box pre {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            background: #f0f7ff;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-right: 4px solid #667eea;
+        }
+
+        .feature-list li:before {
+            content: "✓ ";
+            color: #28a745;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 PR12 Validation Test Suite</h1>
+            <p>Post-Purchase Automation & Global Plugin Inspector</p>
+        </div>
+
+        <!-- Feature Overview -->
+        <div class="test-section">
+            <h2>📋 قابلیت‌های پیاده‌سازی شده</h2>
+            <ul class="feature-list">
+                <li>رهگیری هوشمند سفارش (Smart Order Tracking)</li>
+                <li>اتصال به API پست و تیپاکس (Shipping API Bridge)</li>
+                <li>سیستم تیکتینگ بدون فرم (Conversation-based Ticketing)</li>
+                <li>موتور بازگشت مشتری (Retention Engine)</li>
+                <li>اسکنر افزونه‌ها (Plugin Scanner)</li>
+                <li>استخراج متادیتا (Metadata Mining)</li>
+                <li>شنونده Hookها (Hook Observer)</li>
+                <li>مولد کانتکست پویا (Dynamic Context Generator)</li>
+            </ul>
+        </div>
+
+        <!-- Test 1: Order Tracking -->
+        <div class="test-section">
+            <h2>🔍 تست 1: رهگیری سفارش</h2>
+            <div class="test-case">
+                <h3>رهگیری با شماره سفارش</h3>
+                <div class="test-input">
+                    <label>شماره سفارش:</label>
+                    <input type="number" id="order_id" placeholder="مثال: 123">
+                </div>
+                <button class="test-button" onclick="trackOrder()">رهگیری سفارش</button>
+                <div class="loading" id="loading1">
+                    <div class="spinner"></div>
+                    <p>در حال استعلام...</p>
+                </div>
+                <div class="result-box" id="result1"></div>
+            </div>
+
+            <div class="test-case">
+                <h3>رهگیری با شماره تلفن</h3>
+                <div class="test-input">
+                    <label>شماره تلفن:</label>
+                    <input type="text" id="phone" placeholder="مثال: 09123456789">
+                </div>
+                <button class="test-button" onclick="trackByPhone()">جستجوی سفارشات</button>
+                <div class="loading" id="loading2">
+                    <div class="spinner"></div>
+                    <p>در حال جستجو...</p>
+                </div>
+                <div class="result-box" id="result2"></div>
+            </div>
+        </div>
+
+        <!-- Test 2: Shipping Tracking -->
+        <div class="test-section">
+            <h2>📦 تست 2: رهگیری مرسولات</h2>
+            <div class="test-case">
+                <h3>استعلام از پست/تیپاکس</h3>
+                <div class="test-input">
+                    <label>کد رهگیری:</label>
+                    <input type="text" id="tracking_code" placeholder="مثال: 123456789">
+                </div>
+                <div class="test-input">
+                    <label>سرویس:</label>
+                    <select id="service">
+                        <option value="post">پست</option>
+                        <option value="tipax">تیپاکس</option>
+                    </select>
+                </div>
+                <button class="test-button" onclick="trackShipping()">رهگیری مرسوله</button>
+                <div class="loading" id="loading3">
+                    <div class="spinner"></div>
+                    <p>در حال استعلام از سامانه...</p>
+                </div>
+                <div class="result-box" id="result3"></div>
+            </div>
+        </div>
+
+        <!-- Test 3: Support Ticketing -->
+        <div class="test-section">
+            <h2>🎫 تست 3: سیستم تیکتینگ</h2>
+            <div class="test-case">
+                <h3>ایجاد تیکت از مکالمه</h3>
+                <div class="test-input">
+                    <label>متن پیام (برای تست دسته‌بندی خودکار):</label>
+                    <textarea id="ticket_message" placeholder="مثال: سفارشم مشکل داره، کیفیت چاپ خیلی ضعیفه و عصبانیم!"></textarea>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        💡 نکته: از کلماتی مثل «عصبانی»، «فوری»، «کیفیت ضعیف» برای تست تشخیص فوریت استفاده کنید.
+                    </small>
+                </div>
+                <button class="test-button" onclick="createTicket()">ایجاد تیکت</button>
+                <div class="loading" id="loading4">
+                    <div class="spinner"></div>
+                    <p>در حال تحلیل و ثبت...</p>
+                </div>
+                <div class="result-box" id="result4"></div>
+            </div>
+        </div>
+
+        <!-- Test 4: Plugin Scanner -->
+        <div class="test-section">
+            <h2>🔌 تست 4: اسکنر افزونه‌ها</h2>
+            <div class="test-case">
+                <h3>اسکن افزونه‌های نصب شده</h3>
+                <button class="test-button" onclick="scanPlugins()">اسکن افزونه‌ها</button>
+                <div class="loading" id="loading5">
+                    <div class="spinner"></div>
+                    <p>در حال اسکن...</p>
+                </div>
+                <div class="result-box" id="result5"></div>
+            </div>
+        </div>
+
+        <!-- Test 5: Metadata Mining -->
+        <div class="test-section">
+            <h2>⚙️ تست 5: استخراج متادیتا</h2>
+            <div class="test-case">
+                <h3>استخراج اطلاعات افزونه‌ها</h3>
+                <div class="test-input">
+                    <label>
+                        <input type="checkbox" id="force_refresh"> به‌روزرسانی اجباری کش
+                    </label>
+                </div>
+                <button class="test-button" onclick="getMetadata()">استخراج متادیتا</button>
+                <div class="loading" id="loading6">
+                    <div class="spinner"></div>
+                    <p>در حال استخراج...</p>
+                </div>
+                <div class="result-box" id="result6"></div>
+            </div>
+        </div>
+
+        <!-- Test 6: Retention Analytics -->
+        <div class="test-section">
+            <h2>📊 تست 6: تحلیل بازگشت مشتری</h2>
+            <div class="test-case">
+                <h3>آمار کمپین بازگشت</h3>
+                <button class="test-button" onclick="getRetentionAnalytics()">مشاهده آمار</button>
+                <div class="loading" id="loading7">
+                    <div class="spinner"></div>
+                    <p>در حال دریافت آمار...</p>
+                </div>
+                <div class="result-box" id="result7"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Base URL for API
+        const API_BASE = '/wp-json/homaye-tabesh/v1';
+
+        // Helper function to show loading
+        function showLoading(id) {
+            document.getElementById(id).classList.add('show');
+        }
+
+        // Helper function to hide loading
+        function hideLoading(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
+        // Helper function to show result
+        function showResult(id, data, isSuccess = true) {
+            const resultBox = document.getElementById(id);
+            resultBox.innerHTML = `
+                <h4>${isSuccess ? '✅ موفق' : '❌ خطا'}</h4>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            resultBox.className = 'result-box show ' + (isSuccess ? 'success' : 'error');
+        }
+
+        // Test 1: Track Order
+        function trackOrder() {
+            const orderId = document.getElementById('order_id').value;
+            
+            if (!orderId) {
+                alert('لطفاً شماره سفارش را وارد کنید.');
+                return;
+            }
+
+            showLoading('loading1');
+
+            fetch(`${API_BASE}/order/track`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    order_id: orderId
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading('loading1');
+                showResult('result1', data, data.success);
+            })
+            .catch(err => {
+                hideLoading('loading1');
+                showResult('result1', {error: err.message}, false);
+            });
+        }
+
+        // Test 1b: Track by Phone
+        function trackByPhone() {
+            const phone = document.getElementById('phone').value;
+            
+            if (!phone) {
+                alert('لطفاً شماره تلفن را وارد کنید.');
+                return;
+            }
+
+            showLoading('loading2');
+
+            fetch(`${API_BASE}/order/track`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    phone: phone
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading('loading2');
+                showResult('result2', data, data.success);
+            })
+            .catch(err => {
+                hideLoading('loading2');
+                showResult('result2', {error: err.message}, false);
+            });
+        }
+
+        // Test 2: Track Shipping
+        function trackShipping() {
+            const trackingCode = document.getElementById('tracking_code').value;
+            const service = document.getElementById('service').value;
+            
+            if (!trackingCode) {
+                alert('لطفاً کد رهگیری را وارد کنید.');
+                return;
+            }
+
+            showLoading('loading3');
+
+            fetch(`${API_BASE}/shipping/track`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    tracking_code: trackingCode,
+                    service: service
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading('loading3');
+                showResult('result3', data, data.success);
+            })
+            .catch(err => {
+                hideLoading('loading3');
+                showResult('result3', {error: err.message}, false);
+            });
+        }
+
+        // Test 3: Create Ticket
+        function createTicket() {
+            const message = document.getElementById('ticket_message').value;
+            
+            if (!message) {
+                alert('لطفاً متن پیام را وارد کنید.');
+                return;
+            }
+
+            showLoading('loading4');
+
+            fetch(`${API_BASE}/support/ticket`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: message,
+                    context: {
+                        source: 'validation_test',
+                        timestamp: new Date().toISOString()
+                    }
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading('loading4');
+                showResult('result4', data, data.success);
+            })
+            .catch(err => {
+                hideLoading('loading4');
+                showResult('result4', {error: err.message}, false);
+            });
+        }
+
+        // Test 4: Scan Plugins
+        function scanPlugins() {
+            showLoading('loading5');
+
+            fetch(`${API_BASE}/plugins/scan`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading('loading5');
+                showResult('result5', data, data.success);
+            })
+            .catch(err => {
+                hideLoading('loading5');
+                showResult('result5', {error: err.message}, false);
+            });
+        }
+
+        // Test 5: Get Metadata
+        function getMetadata() {
+            const forceRefresh = document.getElementById('force_refresh').checked;
+            
+            showLoading('loading6');
+
+            fetch(`${API_BASE}/plugins/metadata?refresh=${forceRefresh}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading('loading6');
+                showResult('result6', data, data.success);
+            })
+            .catch(err => {
+                hideLoading('loading6');
+                showResult('result6', {error: err.message}, false);
+            });
+        }
+
+        // Test 6: Retention Analytics
+        function getRetentionAnalytics() {
+            showLoading('loading7');
+
+            fetch(`${API_BASE}/retention/analytics`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                hideLoading('loading7');
+                showResult('result7', data, data.success);
+            })
+            .catch(err => {
+                hideLoading('loading7');
+                showResult('result7', {error: err.message}, false);
+            });
+        }
+    </script>
+</body>
+</html>

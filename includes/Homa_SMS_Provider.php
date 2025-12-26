@@ -146,8 +146,12 @@ class Homa_SMS_Provider
     /**
      * ارسال پیامک ساده (بدون الگو)
      * برای مواقع اضطراری یا زمانی که الگو تنظیم نشده
+     * 
+     * @param string $to شماره موبایل
+     * @param string $message متن پیام
+     * @return bool موفقیت عملیات
      */
-    private function send_simple_sms(string $to, string $message): bool
+    public function send_simple_sms(string $to, string $message): bool
     {
         try {
             $client = $this->get_client();

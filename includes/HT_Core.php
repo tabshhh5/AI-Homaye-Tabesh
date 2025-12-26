@@ -107,6 +107,51 @@ final class HT_Core
     public ?HT_Lead_REST_API $lead_api = null;
 
     /**
+     * Order Tracker (PR12 - Post-Purchase Automation)
+     */
+    public ?HT_Order_Tracker $order_tracker = null;
+
+    /**
+     * Shipping API Bridge (PR12 - Post & Tipax Integration)
+     */
+    public ?HT_Shipping_API_Bridge $shipping_bridge = null;
+
+    /**
+     * Support Ticketing (PR12 - Conversation-based Support)
+     */
+    public ?HT_Support_Ticketing $support_ticketing = null;
+
+    /**
+     * Retention Engine (PR12 - Customer Retention)
+     */
+    public ?HT_Retention_Engine $retention_engine = null;
+
+    /**
+     * Plugin Scanner (PR12 - Global Inspector)
+     */
+    public ?HT_Plugin_Scanner $plugin_scanner = null;
+
+    /**
+     * Metadata Mining Engine (PR12 - Plugin Data Extraction)
+     */
+    public ?HT_Metadata_Mining_Engine $metadata_engine = null;
+
+    /**
+     * Hook Observer Service (PR12 - Action Listeners)
+     */
+    public ?HT_Hook_Observer_Service $hook_observer = null;
+
+    /**
+     * Dynamic Context Generator (PR12 - AI Context Builder)
+     */
+    public ?HT_Dynamic_Context_Generator $context_generator = null;
+
+    /**
+     * Post-Purchase REST API (PR12 - Order & Support APIs)
+     */
+    public ?HT_PostPurchase_REST_API $postpurchase_api = null;
+
+    /**
      * Get singleton instance
      *
      * @return self
@@ -162,6 +207,20 @@ final class HT_Core
         // Initialize Lead REST API (PR11 - Smart Lead Conversion & OTP)
         $this->lead_api = new HT_Lead_REST_API();
 
+        // Initialize PR12 - Post-Purchase Automation & Plugin Inspector
+        $this->order_tracker = new HT_Order_Tracker();
+        $this->shipping_bridge = new HT_Shipping_API_Bridge();
+        $this->support_ticketing = new HT_Support_Ticketing();
+        $this->retention_engine = new HT_Retention_Engine();
+        $this->plugin_scanner = new HT_Plugin_Scanner();
+        $this->metadata_engine = new HT_Metadata_Mining_Engine();
+        $this->hook_observer = new HT_Hook_Observer_Service();
+        $this->context_generator = new HT_Dynamic_Context_Generator();
+        $this->postpurchase_api = new HT_PostPurchase_REST_API();
+
+        // Initialize hook observers (PR12)
+        $this->hook_observer->init_observers();
+
         // Initialize default knowledge base on first load
         add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
         
@@ -176,6 +235,23 @@ final class HT_Core
             wp_schedule_event(time(), 'hourly', 'homa_cleanup_expired_otps');
         }
         add_action('homa_cleanup_expired_otps', [Homa_OTP_Core_Engine::class, 'cleanup_expired_otps']);
+
+        // Schedule retention campaign cron job (PR12)
+        HT_Retention_Engine::schedule_retention_cron();
+        add_action('homa_run_retention_campaign', [HT_Retention_Engine::class, 'run_retention_campaign_cron']);
+
+        // Schedule metadata refresh cron job (PR12)
+        HT_Metadata_Mining_Engine::schedule_metadata_refresh();
+        add_action('homa_refresh_plugin_metadata', [HT_Metadata_Mining_Engine::class, 'metadata_refresh_cron']);
+
+        // Schedule feedback SMS on order completion (PR12)
+        add_action('woocommerce_order_status_completed', [$this, 'handle_order_completed']);
+
+        // Hook observer cleanup (PR12)
+        if (!wp_next_scheduled('homa_cleanup_hook_events')) {
+            wp_schedule_event(time(), 'weekly', 'homa_cleanup_hook_events');
+        }
+        add_action('homa_cleanup_hook_events', [HT_Hook_Observer_Service::class, 'cleanup_old_events']);
     }
 
     /**
@@ -190,6 +266,7 @@ final class HT_Core
         add_action('rest_api_init', [$this->ai_controller, 'register_endpoints']);
         add_action('rest_api_init', [$this->atlas_api, 'register_endpoints']);
         add_action('rest_api_init', [$this->lead_api, 'register_endpoints']); // PR11
+        add_action('rest_api_init', [$this->postpurchase_api, 'register_endpoints']); // PR12
         
         // Initialize Vault REST API (PR7)
         HT_Vault_REST_API::init();
@@ -204,6 +281,17 @@ final class HT_Core
 
         // Initialize persona tracking
         add_action('init', [$this->memory, 'init_session']);
+    }
+
+    /**
+     * Handle order completion hook (PR12)
+     * 
+     * @param int $order_id Order ID
+     * @return void
+     */
+    public function handle_order_completed(int $order_id): void
+    {
+        $this->retention_engine->schedule_feedback_sms($order_id);
     }
 
     /**
