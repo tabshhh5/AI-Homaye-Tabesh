@@ -20,10 +20,11 @@ namespace HomayeTabesh;
 class HT_Error_Handler
 {
     /**
-     * Static logging lock - prevents recursion during log operations
+     * Circuit Breaker flag - prevents recursion during error handling
      * This is a critical safety mechanism to prevent stack overflow
+     * MUST be checked as the FIRST operation in any handler method
      */
-    private static bool $is_logging = false;
+    private static bool $is_processing = false;
 
     /**
      * Log an error message to WordPress debug.log
@@ -35,13 +36,13 @@ class HT_Error_Handler
      */
     public static function log_error(string $message, string $context = 'general', $data = null): void
     {
-        // Critical: Check logging lock FIRST before any other operations
-        if (self::$is_logging) {
+        // CIRCUIT BREAKER: Check processing flag FIRST before any other operations
+        if (self::$is_processing) {
             return;
         }
 
-        // Set lock immediately to prevent recursion
-        self::$is_logging = true;
+        // Set circuit breaker immediately to prevent recursion
+        self::$is_processing = true;
 
         try {
             $log_message = sprintf(
@@ -57,8 +58,8 @@ class HT_Error_Handler
             // Use pure PHP error_log to avoid WordPress hooks that might recurse
             error_log($log_message);
         } finally {
-            // Always release lock
-            self::$is_logging = false;
+            // Always release circuit breaker
+            self::$is_processing = false;
         }
     }
 
@@ -71,13 +72,13 @@ class HT_Error_Handler
      */
     public static function log_exception(\Throwable $exception, string $context = 'general'): void
     {
-        // Critical: Check logging lock FIRST
-        if (self::$is_logging) {
+        // CIRCUIT BREAKER: Check processing flag FIRST
+        if (self::$is_processing) {
             return;
         }
 
-        // Set lock immediately
-        self::$is_logging = true;
+        // Set circuit breaker immediately
+        self::$is_processing = true;
 
         try {
             $message = sprintf(
@@ -94,8 +95,8 @@ class HT_Error_Handler
             // Use pure PHP error_log
             error_log('[Homaye Tabesh - ' . $context . '] ' . $log_message);
         } finally {
-            // Always release lock
-            self::$is_logging = false;
+            // Always release circuit breaker
+            self::$is_processing = false;
         }
     }
 

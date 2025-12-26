@@ -77,13 +77,28 @@ if (!class_exists('HomayeTabesh\HT_Core')) {
 }
 
 // Initialize the plugin with Boot Shield protection
+// Priority -9999 ensures early loading and proper error handler availability
 add_action('plugins_loaded', function () {
+    // Static flag to prevent re-entry during emergency logging
+    static $boot_in_progress = false;
+    
+    if ($boot_in_progress) {
+        return;
+    }
+    
+    $boot_in_progress = true;
+    
     try {
         // Check WooCommerce dependency (log warning if missing, but continue)
+        // Use pure PHP functions only - no WordPress globals
         if (!class_exists('WooCommerce')) {
-            $log_file = WP_CONTENT_DIR . '/homa-emergency-log.txt';
+            // Emergency logging with absolute isolation
+            $log_file = defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/homa-emergency-log.txt' : '/tmp/homa-emergency-log.txt';
             $message = '[' . date('Y-m-d H:i:s') . '] WARNING: WooCommerce not active - some features may be limited' . PHP_EOL;
             @file_put_contents($log_file, $message, FILE_APPEND | LOCK_EX);
+            
+            // Also use error_log as backup
+            error_log('[Homaye Tabesh - init] WARNING: WooCommerce not active - some features may be limited');
         }
 
         // Use safe loader instead of direct instantiation
@@ -95,12 +110,15 @@ add_action('plugins_loaded', function () {
             \HomayeTabesh\HT_Core::instance();
         }
     } catch (\Throwable $e) {
-        // Emergency logging that doesn't crash the site
-        $log_file = WP_CONTENT_DIR . '/homa-emergency-log.txt';
+        // Emergency logging that doesn't crash the site - pure PHP only
+        $log_file = defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/homa-emergency-log.txt' : '/tmp/homa-emergency-log.txt';
         $message = '[' . date('Y-m-d H:i:s') . '] CRITICAL BOOT ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() . PHP_EOL;
         @file_put_contents($log_file, $message, FILE_APPEND | LOCK_EX);
         
-        // Also log to WordPress if available
+        // Use pure error_log first
+        error_log('[Homaye Tabesh - CRITICAL] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+        
+        // Try to log using HT_Error_Handler if available (has its own circuit breaker)
         if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
             \HomayeTabesh\HT_Error_Handler::log_exception($e, 'plugin_init');
             \HomayeTabesh\HT_Error_Handler::admin_notice(
@@ -109,14 +127,14 @@ add_action('plugins_loaded', function () {
                     $e->getMessage()
                 )
             );
-        } else {
-            error_log('[Homaye Tabesh - CRITICAL] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
         }
         
         // Prevent further execution but don't crash the site
         return;
+    } finally {
+        $boot_in_progress = false;
     }
-}, 10);
+}, -9999); // Very high priority to ensure early loading
 
 // Load plugin text domain for translations
 add_action('init', function () {
