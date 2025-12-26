@@ -60,6 +60,9 @@ class HT_Gemini_Client
         }
 
         try {
+            // PR17: Enhance context with authority-checked facts
+            $context = $this->enhance_context_with_authority($context);
+
             // PR16: Apply LLM Shield - Input Firewall
             if (class_exists('\HomayeTabesh\HT_LLM_Shield_Layer')) {
                 $shield = new HT_LLM_Shield_Layer();
@@ -126,6 +129,23 @@ class HT_Gemini_Client
                 }
             }
 
+            // PR17: Execute actions if present using Orchestrator
+            if (isset($parsed_response['actions']) && !empty($parsed_response['actions'])) {
+                if (class_exists('\HomayeTabesh\HT_Action_Orchestrator')) {
+                    $orchestrator = HT_Core::instance()->action_orchestrator;
+                    $action_result = $orchestrator->execute_actions($parsed_response['actions'], $context);
+                    
+                    // Update response with action results
+                    if ($action_result['success']) {
+                        $parsed_response['response'] = $action_result['message'];
+                        $parsed_response['action_results'] = $action_result['results'];
+                    } else {
+                        $parsed_response['response'] = 'خطا در انجام عملیات: ' . $action_result['error'];
+                        $parsed_response['action_error'] = $action_result;
+                    }
+                }
+            }
+
             return $parsed_response;
         } catch (\Exception $e) {
             error_log('Homaye Tabesh - Gemini API Error: ' . $e->getMessage());
@@ -159,6 +179,24 @@ class HT_Gemini_Client
         $instruction = "شما یک دستیار هوشمند فروش برای وبسایت چاپکو هستید. ";
         $instruction .= "وظیفه شما کمک به کاربران در انتخاب بهترین محصولات چاپی است.\n\n";
 
+        // PR17: Add Authority System Instructions
+        $instruction .= "سیستم سلسله‌مراتب اعتبار دانش:\n";
+        $instruction .= "1. بالاترین اولویت: اصلاحات دستی مدیر (Manual Overrides)\n";
+        $instruction .= "2. تنظیمات مستقیم پنل مدیریت\n";
+        $instruction .= "3. داده‌های زنده از سیستم و WooCommerce\n";
+        $instruction .= "4. دانش عمومی شما\n";
+        $instruction .= "در صورت تضاد اطلاعات، همیشه از سطح بالاتر استفاده کنید.\n\n";
+
+        // PR17: Add Action Orchestration Instructions
+        $instruction .= "قابلیت اجرای عملیات چندگانه:\n";
+        $instruction .= "می‌توانید چندین عملیات را به صورت زنجیره‌ای انجام دهید:\n";
+        $instruction .= "- verify_otp: تایید کد یکبار مصرف\n";
+        $instruction .= "- create_order: ثبت سفارش\n";
+        $instruction .= "- add_to_cart: افزودن به سبد خرید\n";
+        $instruction .= "- send_sms: ارسال پیامک\n";
+        $instruction .= "- save_lead: ذخیره سرنخ\n";
+        $instruction .= "برای انجام عملیات، در پاسخ خود یک آرایه 'actions' قرار دهید.\n\n";
+
         // Add WooCommerce product context
         if (!empty($context['products'])) {
             $instruction .= "محصولات موجود:\n";
@@ -185,6 +223,14 @@ class HT_Gemini_Client
                 $context['persona']['type'] ?? 'نامشخص',
                 $context['persona']['score'] ?? 0
             );
+        }
+
+        // PR17: Add authority-checked facts to context
+        if (!empty($context['checked_facts'])) {
+            $instruction .= "\nفکت‌های تایید شده (با بالاترین اعتبار):\n";
+            foreach ($context['checked_facts'] as $key => $value) {
+                $instruction .= sprintf("- %s: %s\n", $key, $value);
+            }
         }
 
         return $instruction;
@@ -571,5 +617,55 @@ class HT_Gemini_Client
         $text = trim($text);
         
         return $text;
+    }
+
+    /**
+     * Enhance context with authority-checked facts (PR17)
+     * 
+     * @param array $context Original context
+     * @return array Enhanced context with checked facts
+     */
+    private function enhance_context_with_authority(array $context): array
+    {
+        if (!class_exists('\HomayeTabesh\HT_Authority_Manager')) {
+            return $context;
+        }
+
+        $authority_manager = HT_Core::instance()->authority_manager;
+        $checked_facts = [];
+
+        // Define facts that should be checked with authority manager
+        $fact_keys_to_check = [
+            'shipping_cost',
+            'min_order_value',
+            'delivery_time',
+            'support_phone',
+            'support_email',
+        ];
+
+        // Check product prices if products are in context
+        if (!empty($context['products'])) {
+            foreach ($context['products'] as $product) {
+                if (isset($product['id'])) {
+                    $fact_key = 'product_price_' . $product['id'];
+                    $fact_keys_to_check[] = $fact_key;
+                }
+            }
+        }
+
+        // Get checked facts from authority manager
+        foreach ($fact_keys_to_check as $key) {
+            $value = $authority_manager->get_final_fact($key, $context);
+            if ($value !== null) {
+                $checked_facts[$key] = $value;
+            }
+        }
+
+        // Add checked facts to context
+        if (!empty($checked_facts)) {
+            $context['checked_facts'] = $checked_facts;
+        }
+
+        return $context;
     }
 }
