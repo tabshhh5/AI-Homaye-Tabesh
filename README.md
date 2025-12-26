@@ -46,13 +46,35 @@
 
 ## نصب
 
-1. فایل‌های افزونه را در پوشه `/wp-content/plugins/homaye-tabesh/` قرار دهید
-2. Composer را اجرا کنید:
+### برای کاربران نهایی (نصب ساده)
+
+1. **دانلود نسخه آماده**: از بخش [Releases](https://github.com/tabshhh4-sketch/AI-Homaye-Tabesh/releases) آخرین نسخه را دانلود کنید
+2. **آپلود به وردپرس**: فایل ZIP را از طریق پنل مدیریت وردپرس (افزونه‌ها > افزودن) آپلود کنید
+3. **فعال‌سازی**: افزونه را فعال کنید
+4. **تنظیمات**: کلید API گوگل Gemini را در تنظیمات وارد کنید
+
+> **نکته مهم**: نسخه Release شامل تمام فایل‌های لازم است و نیازی به نصب Composer ندارد.
+
+### برای توسعه‌دهندگان (نصب از سورس)
+
+اگر می‌خواهید روی کد کار کنید یا از آخرین نسخه development استفاده کنید:
+
+1. مخزن را کلون کنید:
+   ```bash
+   git clone https://github.com/tabshhh4-sketch/AI-Homaye-Tabesh.git homaye-tabesh
+   cd homaye-tabesh
+   ```
+
+2. وابستگی‌ها را نصب کنید:
    ```bash
    composer install --no-dev --optimize-autoloader
+   npm install && npm run build
    ```
+
 3. افزونه را از پنل مدیریت وردپرس فعال کنید
 4. کلید API گوگل Gemini را در تنظیمات وارد کنید
+
+> **توجه**: بدون اجرای `composer install`، افزونه از autoloader داخلی استفاده می‌کند که برای محیط production مناسب است.
 
 ## ساختار پروژه
 
