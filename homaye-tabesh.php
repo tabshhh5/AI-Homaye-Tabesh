@@ -39,10 +39,24 @@ if (version_compare(PHP_VERSION, '8.2', '<')) {
 }
 
 // Load autoloader - use Composer's if available, otherwise use fallback
-if (file_exists(HT_PLUGIN_DIR . 'vendor/autoload.php')) {
-    require_once HT_PLUGIN_DIR . 'vendor/autoload.php';
-} else {
-    require_once HT_PLUGIN_DIR . 'includes/autoload.php';
+try {
+    if (file_exists(HT_PLUGIN_DIR . 'vendor/autoload.php')) {
+        require_once HT_PLUGIN_DIR . 'vendor/autoload.php';
+    } else {
+        require_once HT_PLUGIN_DIR . 'includes/autoload.php';
+    }
+} catch (\Throwable $e) {
+    error_log('[Homaye Tabesh - Autoload Error] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    add_action('admin_notices', function () use ($e) {
+        echo '<div class="notice notice-error"><p>';
+        echo '<strong>' . esc_html__('خطای همای تابش:', 'homaye-tabesh') . '</strong> ';
+        echo esc_html__('خطا در بارگذاری autoloader. لطفاً افزونه را مجدداً نصب کنید.', 'homaye-tabesh');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            echo '<br><small>' . esc_html($e->getMessage()) . '</small>';
+        }
+        echo '</p></div>';
+    });
+    return;
 }
 
 // Verify core classes are available
@@ -64,24 +78,58 @@ if (!class_exists('HomayeTabesh\HT_Core')) {
 
 // Initialize the plugin
 add_action('plugins_loaded', function () {
-    \HomayeTabesh\HT_Core::instance();
+    try {
+        \HomayeTabesh\HT_Core::instance();
+    } catch (\Throwable $e) {
+        // Log the error
+        \HomayeTabesh\HT_Error_Handler::log_exception($e, 'plugin_init');
+        
+        // Display admin notice
+        \HomayeTabesh\HT_Error_Handler::admin_notice(
+            sprintf(
+                __('خطا در راه‌اندازی افزونه: %s', 'homaye-tabesh'),
+                $e->getMessage()
+            )
+        );
+        
+        // Prevent further execution but don't crash the site
+        return;
+    }
 }, 10);
 
 // Activation hook
 register_activation_hook(__FILE__, function () {
-    if (!class_exists('HomayeTabesh\HT_Activator')) {
+    try {
+        if (!class_exists('HomayeTabesh\HT_Activator')) {
+            \HomayeTabesh\HT_Error_Handler::log_error('HT_Activator class not found during activation', 'activation');
+            wp_die(
+                esc_html__('افزونه همای تابش به درستی نصب نشده است. لطفاً از نسخه Release استفاده کنید یا دستورات نصب را دنبال کنید.', 'homaye-tabesh'),
+                esc_html__('خطای نصب افزونه', 'homaye-tabesh'),
+                ['back_link' => true]
+            );
+        }
+        \HomayeTabesh\HT_Activator::activate();
+    } catch (\Throwable $e) {
+        \HomayeTabesh\HT_Error_Handler::log_exception($e, 'activation');
         wp_die(
-            esc_html__('افزونه همای تابش به درستی نصب نشده است. لطفاً از نسخه Release استفاده کنید یا دستورات نصب را دنبال کنید.', 'homaye-tabesh'),
-            esc_html__('خطای نصب افزونه', 'homaye-tabesh'),
+            sprintf(
+                esc_html__('خطا در فعال‌سازی افزونه همای تابش: %s', 'homaye-tabesh'),
+                $e->getMessage()
+            ),
+            esc_html__('خطای فعال‌سازی', 'homaye-tabesh'),
             ['back_link' => true]
         );
     }
-    \HomayeTabesh\HT_Activator::activate();
 });
 
 // Deactivation hook
 register_deactivation_hook(__FILE__, function () {
-    if (class_exists('HomayeTabesh\HT_Deactivator')) {
-        \HomayeTabesh\HT_Deactivator::deactivate();
+    try {
+        if (class_exists('HomayeTabesh\HT_Deactivator')) {
+            \HomayeTabesh\HT_Deactivator::deactivate();
+        }
+    } catch (\Throwable $e) {
+        \HomayeTabesh\HT_Error_Handler::log_exception($e, 'deactivation');
+        // Don't wp_die on deactivation to allow users to deactivate broken plugins
     }
 });
