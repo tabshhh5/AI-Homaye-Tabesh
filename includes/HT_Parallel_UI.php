@@ -164,6 +164,14 @@ class HT_Parallel_UI
             [],
             HT_VERSION
         );
+
+        // Enqueue role-based UI CSS (PR15)
+        wp_enqueue_style(
+            'homa-role-ui',
+            HT_PLUGIN_URL . 'assets/css/homa-role-ui.css',
+            ['homa-parallel-ui'],
+            HT_VERSION
+        );
     }
 
     /**

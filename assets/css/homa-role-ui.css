@@ -1,0 +1,648 @@
+/**
+ * Role-Based UI Styles for Homa Sidebar
+ * PR15 - Multi-Role Intelligence & Intruder Detection
+ * 
+ * @package HomayeTabesh
+ * @since PR15
+ */
+
+/* ===============================================
+   Role Badge Styles
+   =============================================== */
+.homa-role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.homa-role-badge.admin {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+}
+
+.homa-role-badge.customer {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: #fff;
+}
+
+.homa-role-badge.guest {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: #fff;
+}
+
+.homa-role-badge.intruder {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: #333;
+}
+
+/* ===============================================
+   Role Tools Section
+   =============================================== */
+.homa-role-tools-section {
+    padding: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);
+}
+
+.homa-tools-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.homa-tools-header h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+/* ===============================================
+   Admin Tools Component
+   =============================================== */
+.homa-admin-tools {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.homa-tools-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.homa-tool-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 12px;
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: #374151;
+}
+
+.homa-tool-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #6366f1;
+}
+
+.homa-tool-button.analytics:hover {
+    background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+}
+
+.homa-tool-button.users:hover {
+    background: linear-gradient(135deg, #f093fb10 0%, #f5576c10 100%);
+}
+
+.homa-tool-button.security:hover {
+    background: linear-gradient(135deg, #fa709a10 0%, #fee14010 100%);
+}
+
+.homa-tool-button.atlas:hover {
+    background: linear-gradient(135deg, #4facfe10 0%, #00f2fe10 100%);
+}
+
+.homa-tool-icon {
+    font-size: 28px;
+}
+
+.homa-tool-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.homa-admin-summary {
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+    border-radius: 8px;
+    border-right: 4px solid #667eea;
+}
+
+.homa-welcome-admin {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #4b5563;
+}
+
+/* ===============================================
+   Order Tracker Component
+   =============================================== */
+.homa-order-tracker {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.homa-welcome-customer {
+    padding: 12px;
+    background: linear-gradient(135deg, #f093fb15 0%, #f5576c15 100%);
+    border-radius: 8px;
+    border-right: 4px solid #f093fb;
+    margin-bottom: 16px;
+}
+
+.homa-welcome-customer p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #4b5563;
+}
+
+.homa-quick-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.homa-action-button {
+    flex: 1;
+    padding: 12px;
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.homa-action-button:hover:not(:disabled) {
+    background: #f5576c;
+    color: #ffffff;
+    border-color: #f5576c;
+    transform: translateY(-2px);
+}
+
+.homa-action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.homa-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 32px;
+}
+
+.homa-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #f5576c;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.homa-empty-orders {
+    text-align: center;
+    padding: 32px 16px;
+}
+
+.homa-empty-orders p {
+    margin-bottom: 16px;
+    color: #6b7280;
+}
+
+.homa-browse-button {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #f5576c;
+    color: #ffffff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.homa-browse-button:hover {
+    background: #e03e56;
+    transform: translateY(-2px);
+}
+
+.homa-orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.homa-order-card {
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    transition: all 0.3s ease;
+}
+
+.homa-order-card:hover {
+    border-color: #f5576c;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.homa-order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.homa-order-number {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.homa-order-status {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.homa-order-status.completed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.homa-order-status.processing {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.homa-order-status.pending {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.homa-order-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.homa-order-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.homa-order-action-btn {
+    flex: 1;
+    padding: 8px;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.homa-order-action-btn:hover {
+    background: #f5576c;
+    color: #ffffff;
+    border-color: #f5576c;
+}
+
+.homa-order-action-btn.renew {
+    background: #fef3c7;
+    border-color: #fbbf24;
+}
+
+.homa-order-action-btn.renew:hover {
+    background: #fbbf24;
+    color: #000000;
+}
+
+.homa-view-all {
+    text-align: center;
+    margin-top: 12px;
+}
+
+.homa-view-all a {
+    color: #f5576c;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/* ===============================================
+   Security Warning Component
+   =============================================== */
+.homa-security-warning {
+    padding: 24px;
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.homa-warning-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.homa-icon-shield {
+    display: block;
+}
+
+.homa-icon-warning {
+    position: absolute;
+    top: 0;
+    right: 50%;
+    transform: translateX(50%);
+    animation: pulse 2s infinite;
+}
+
+.homa-warning-title {
+    margin: 0 0 12px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #dc2626;
+}
+
+.homa-warning-message {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #374151;
+    margin-bottom: 16px;
+}
+
+.homa-warning-details {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.homa-warning-reason {
+    margin: 0;
+    font-size: 14px;
+    color: #991b1b;
+}
+
+.homa-warning-info {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 16px;
+}
+
+.homa-warning-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.homa-warning-button {
+    flex: 1;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.homa-warning-button.primary {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.homa-warning-button.primary:hover {
+    background: #b91c1c;
+}
+
+.homa-warning-button.secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.homa-warning-button.secondary:hover {
+    background: #e5e7eb;
+}
+
+.homa-warning-footer {
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.homa-warning-note {
+    margin: 0;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* ===============================================
+   Lead Generator Component
+   =============================================== */
+.homa-lead-generator {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.homa-welcome-guest {
+    text-align: center;
+    padding: 16px;
+    background: linear-gradient(135deg, #4facfe15 0%, #00f2fe15 100%);
+    border-radius: 8px;
+    border-right: 4px solid #4facfe;
+    margin-bottom: 16px;
+}
+
+.homa-greeting-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.homa-welcome-guest p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #4b5563;
+}
+
+.homa-guest-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.homa-guest-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: right;
+}
+
+.homa-guest-button:hover {
+    border-color: #4facfe;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 172, 254, 0.2);
+}
+
+.homa-guest-button.primary {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: #ffffff;
+    border-color: #4facfe;
+}
+
+.homa-guest-button.primary:hover {
+    transform: translateY(-2px) scale(1.02);
+}
+
+.homa-button-icon {
+    font-size: 24px;
+}
+
+.homa-button-text {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.homa-registration-prompt {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.homa-prompt-title {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #92400e;
+}
+
+.homa-prompt-text {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    color: #78350f;
+}
+
+.homa-benefits-list {
+    margin: 0 0 16px 0;
+    padding-right: 20px;
+    list-style: none;
+}
+
+.homa-benefits-list li {
+    position: relative;
+    font-size: 13px;
+    color: #78350f;
+    margin-bottom: 6px;
+    padding-right: 20px;
+}
+
+.homa-benefits-list li::before {
+    content: "✓";
+    position: absolute;
+    right: 0;
+    color: #059669;
+    font-weight: 700;
+}
+
+.homa-register-button {
+    width: 100%;
+    padding: 12px;
+    background: #059669;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.homa-register-button:hover {
+    background: #047857;
+    transform: translateY(-2px);
+}
+
+.homa-guest-help {
+    padding: 12px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.homa-help-text {
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* ===============================================
+   Animations
+   =============================================== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: translateX(50%) scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateX(50%) scale(1.1);
+    }
+}
+
+/* ===============================================
+   Responsive Design
+   =============================================== */
+@media (max-width: 480px) {
+    .homa-tools-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .homa-quick-actions {
+        flex-direction: column;
+    }
+    
+    .homa-warning-buttons {
+        flex-direction: column;
+    }
+}

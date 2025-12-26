@@ -5,14 +5,21 @@ import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 import SmartChips from './SmartChips';
 import ExploreWidget from './ExploreWidget';
+import AdminTools from './AdminTools';
+import OrderTracker from './OrderTracker';
+import SecurityWarning from './SecurityWarning';
+import LeadGenerator from './LeadGenerator';
 
 /**
  * HomaSidebar Component
  * Main React component for the Homa chatbot sidebar
  * Integrated with Homa Event Bus (PR 6.5)
+ * Role-based UI (PR15)
  */
 const HomaSidebar = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [userRoleContext, setUserRoleContext] = useState(null);
+    const [roleContextLoading, setRoleContextLoading] = useState(true);
     const { messages, addMessage, userPersona, setUserPersona, setIsTyping } = useHomaStore();
     const messagesEndRef = useRef(null);
     const homaEmit = useHomaEmit();
@@ -27,6 +34,9 @@ const HomaSidebar = () => {
 
         // Load chat history from localStorage
         loadChatHistory();
+        
+        // Fetch user role context (PR15)
+        fetchUserRoleContext();
 
         // Notify that React is ready
         if (window.Homa && window.Homa.emit) {
@@ -110,6 +120,42 @@ const HomaSidebar = () => {
             localStorage.setItem('homa_chat_history', JSON.stringify(history));
         } catch (error) {
             console.error('Failed to save chat history:', error);
+        }
+    };
+
+    /**
+     * Fetch user role context from server (PR15)
+     */
+    const fetchUserRoleContext = async () => {
+        try {
+            const response = await fetch('/wp-json/homaye-tabesh/v1/capabilities/context', {
+                headers: {
+                    'X-WP-Nonce': window.homayeParallelUIConfig?.nonce || ''
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    setUserRoleContext(data.context);
+                    
+                    // Add welcome message if chat is empty
+                    if (messages.length === 0 && data.welcome_message) {
+                        const welcomeMessage = {
+                            id: Date.now(),
+                            type: 'assistant',
+                            content: data.welcome_message,
+                            timestamp: new Date(),
+                            actions: data.suggested_actions || []
+                        };
+                        addMessage(welcomeMessage);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching user role context:', error);
+        } finally {
+            setRoleContextLoading(false);
         }
     };
 
@@ -236,6 +282,38 @@ const HomaSidebar = () => {
         }
     };
 
+    /**
+     * Render role-based tools component (PR15)
+     */
+    const renderRoleBasedTools = () => {
+        if (roleContextLoading) {
+            return (
+                <div className="homa-role-loading">
+                    <span className="homa-spinner"></span>
+                    <p>در حال بارگذاری...</p>
+                </div>
+            );
+        }
+
+        if (!userRoleContext) {
+            return null;
+        }
+
+        const role = userRoleContext.role;
+
+        switch (role) {
+            case 'admin':
+                return <AdminTools userContext={userRoleContext} />;
+            case 'customer':
+                return <OrderTracker userContext={userRoleContext} />;
+            case 'intruder':
+                return <SecurityWarning detectionReason={userRoleContext.detection_reason} />;
+            case 'guest':
+            default:
+                return <LeadGenerator userContext={userRoleContext} />;
+        }
+    };
+
     return (
         <div className={`homa-sidebar-container ${isOpen ? 'open' : ''}`}>
             <div className="homa-sidebar-header">
@@ -259,20 +337,36 @@ const HomaSidebar = () => {
                 </button>
             </div>
 
-            <div className="homa-sidebar-content">
-                <MessageList messages={messages} />
-                <div ref={messagesEndRef} />
-                
-                {/* Explore Widget - Shows when chat is empty or minimal */}
-                {messages.length <= 2 && <ExploreWidget />}
-            </div>
+            {/* Role-based tools section (PR15) */}
+            {userRoleContext && userRoleContext.role !== 'intruder' && (
+                <div className="homa-role-tools-section">
+                    {renderRoleBasedTools()}
+                </div>
+            )}
 
-            <SmartChips 
-                persona={userPersona}
-                onChipClick={handleChipClick}
-            />
+            {/* Show security warning for intruders instead of chat */}
+            {userRoleContext && userRoleContext.role === 'intruder' ? (
+                <div className="homa-sidebar-content intruder-blocked">
+                    {renderRoleBasedTools()}
+                </div>
+            ) : (
+                <>
+                    <div className="homa-sidebar-content">
+                        <MessageList messages={messages} />
+                        <div ref={messagesEndRef} />
+                        
+                        {/* Explore Widget - Shows when chat is empty or minimal */}
+                        {messages.length <= 2 && <ExploreWidget />}
+                    </div>
 
-            <ChatInput onSendMessage={handleSendMessage} />
+                    <SmartChips 
+                        persona={userPersona}
+                        onChipClick={handleChipClick}
+                    />
+
+                    <ChatInput onSendMessage={handleSendMessage} />
+                </>
+            )}
         </div>
     );
 };
