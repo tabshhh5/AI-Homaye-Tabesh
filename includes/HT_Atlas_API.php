@@ -560,6 +560,15 @@ class HT_Atlas_API
             'intelligence_level' => get_option('ht_atlas_intelligence_level', 'standard'), // basic, standard, advanced
             'alert_threshold' => get_option('ht_atlas_alert_threshold', 40), // health score threshold
             'data_retention_days' => get_option('ht_atlas_data_retention', 90),
+            // PR11: MeliPayamak SMS Settings
+            'melipayamak_username' => get_option('ht_melipayamak_username', ''),
+            'melipayamak_password' => get_option('ht_melipayamak_password', ''),
+            'melipayamak_from_number' => get_option('ht_melipayamak_from_number', ''),
+            'melipayamak_otp_pattern' => get_option('ht_melipayamak_otp_pattern', ''),
+            'melipayamak_lead_notification_pattern' => get_option('ht_melipayamak_lead_notification_pattern', ''),
+            'admin_phone_number' => get_option('ht_admin_phone_number', ''),
+            'lead_notification_enabled' => get_option('ht_lead_notification_enabled', true),
+            'lead_hot_score_threshold' => get_option('ht_lead_hot_score_threshold', 70),
         ];
 
         return new \WP_REST_Response([
@@ -602,6 +611,40 @@ class HT_Atlas_API
         if (isset($params['data_retention_days'])) {
             $days = max(7, min(365, intval($params['data_retention_days'])));
             update_option('ht_atlas_data_retention', $days);
+        }
+
+        // PR11: MeliPayamak SMS Settings
+        if (isset($params['melipayamak_username'])) {
+            update_option('ht_melipayamak_username', sanitize_text_field($params['melipayamak_username']));
+        }
+
+        if (isset($params['melipayamak_password'])) {
+            update_option('ht_melipayamak_password', sanitize_text_field($params['melipayamak_password']));
+        }
+
+        if (isset($params['melipayamak_from_number'])) {
+            update_option('ht_melipayamak_from_number', sanitize_text_field($params['melipayamak_from_number']));
+        }
+
+        if (isset($params['melipayamak_otp_pattern'])) {
+            update_option('ht_melipayamak_otp_pattern', sanitize_text_field($params['melipayamak_otp_pattern']));
+        }
+
+        if (isset($params['melipayamak_lead_notification_pattern'])) {
+            update_option('ht_melipayamak_lead_notification_pattern', sanitize_text_field($params['melipayamak_lead_notification_pattern']));
+        }
+
+        if (isset($params['admin_phone_number'])) {
+            update_option('ht_admin_phone_number', sanitize_text_field($params['admin_phone_number']));
+        }
+
+        if (isset($params['lead_notification_enabled'])) {
+            update_option('ht_lead_notification_enabled', (bool)$params['lead_notification_enabled']);
+        }
+
+        if (isset($params['lead_hot_score_threshold'])) {
+            $threshold = max(0, min(100, intval($params['lead_hot_score_threshold'])));
+            update_option('ht_lead_hot_score_threshold', $threshold);
         }
 
         return new \WP_REST_Response([
