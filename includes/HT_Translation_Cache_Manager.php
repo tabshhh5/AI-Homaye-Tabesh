@@ -19,6 +19,16 @@ namespace HomayeTabesh;
 class HT_Translation_Cache_Manager
 {
     /**
+     * Maximum length for original text storage
+     */
+    private const MAX_ORIGINAL_TEXT_LENGTH = 1000;
+
+    /**
+     * Estimated tokens per translation (for savings calculation)
+     */
+    private const ESTIMATED_TOKENS_PER_TRANSLATION = 50;
+
+    /**
      * Gemini client instance
      */
     private HT_Gemini_Client $gemini;
@@ -138,7 +148,7 @@ class HT_Translation_Cache_Manager
             $table_name,
             [
                 'text_hash' => $text_hash,
-                'original_text' => mb_substr($original_text, 0, 1000), // Limit to 1000 chars
+                'original_text' => mb_substr($original_text, 0, self::MAX_ORIGINAL_TEXT_LENGTH),
                 'translated_text' => $translated_text,
                 'lang' => $target_lang,
                 'is_valid' => 1,
@@ -297,7 +307,7 @@ class HT_Translation_Cache_Manager
             'cache_hits' => $this->cache_hits,
             'cache_misses' => $this->cache_misses,
             'cache_hit_rate' => round($cache_hit_rate, 2),
-            'estimated_token_savings' => ((int) $total_uses - (int) $total_entries) * 50, // Estimate 50 tokens per translation
+            'estimated_token_savings' => ((int) $total_uses - (int) $total_entries) * self::ESTIMATED_TOKENS_PER_TRANSLATION,
         ];
     }
 

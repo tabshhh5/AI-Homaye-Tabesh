@@ -349,9 +349,18 @@ class Homa_Render_Buffer_Filter
         $this->translation_enabled = true;
         $this->target_language = $target_lang;
         
-        // Set cookie for 30 days
-        setcookie('homa_translate_to', $target_lang, time() + (30 * 24 * 60 * 60), '/');
-        setcookie('homa_translation_decided', '1', time() + (30 * 24 * 60 * 60), '/');
+        // Set cookie for 30 days with security attributes
+        $secure = is_ssl();
+        $options = [
+            'expires' => time() + (30 * 24 * 60 * 60),
+            'path' => '/',
+            'secure' => $secure,
+            'httponly' => false, // Need to be accessible by JS
+            'samesite' => 'Lax'
+        ];
+        
+        setcookie('homa_translate_to', $target_lang, $options);
+        setcookie('homa_translation_decided', '1', $options);
     }
 
     /**
@@ -363,9 +372,21 @@ class Homa_Render_Buffer_Filter
     {
         $this->translation_enabled = false;
         
-        // Clear cookies
-        setcookie('homa_translate_to', '', time() - 3600, '/');
-        setcookie('homa_translation_decided', '1', time() + (30 * 24 * 60 * 60), '/');
+        // Clear translation cookie
+        $secure = is_ssl();
+        $options = [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => $secure,
+            'httponly' => false,
+            'samesite' => 'Lax'
+        ];
+        
+        setcookie('homa_translate_to', '', $options);
+        
+        // Set decision cookie
+        $options['expires'] = time() + (30 * 24 * 60 * 60);
+        setcookie('homa_translation_decided', '1', $options);
     }
 
     /**
