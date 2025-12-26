@@ -55,9 +55,21 @@ class HT_Gemini_Client
      */
     public function generate_content(string $prompt, array $context = [], array $schema = []): array
     {
+        // PR18: Check fallback engine status
+        $fallback_engine = null;
+        if (class_exists('\HomayeTabesh\HT_Fallback_Engine')) {
+            $fallback_engine = new HT_Fallback_Engine();
+            if ($fallback_engine->is_offline()) {
+                return $fallback_engine->get_fallback_response($prompt, $context);
+            }
+        }
+
         if (empty($this->api_key)) {
             return $this->get_fallback_response('API key not configured');
         }
+
+        // PR18: Start timing for latency tracking
+        $start_time = microtime(true);
 
         try {
             // PR17: Enhance context with authority-checked facts
@@ -111,6 +123,9 @@ class HT_Gemini_Client
             $response = $this->make_request($payload);
             $parsed_response = $this->parse_response($response);
             
+            // PR18: Calculate latency
+            $latency_ms = (int) ((microtime(true) - $start_time) * 1000);
+            
             // PR16: Apply LLM Shield - Output Firewall
             if (class_exists('\HomayeTabesh\HT_LLM_Shield_Layer')) {
                 $shield = new HT_LLM_Shield_Layer();
@@ -146,9 +161,46 @@ class HT_Gemini_Client
                 }
             }
 
+            // PR18: Log successful transaction to BlackBox
+            if (class_exists('\HomayeTabesh\HT_BlackBox_Logger')) {
+                $logger = new HT_BlackBox_Logger();
+                $logger->log_ai_transaction([
+                    'log_type' => 'ai_transaction',
+                    'user_prompt' => $prompt,
+                    'raw_prompt' => wp_json_encode($payload),
+                    'ai_response' => $parsed_response['response'] ?? '',
+                    'raw_response' => wp_json_encode($response),
+                    'latency_ms' => $latency_ms,
+                    'tokens_used' => $response['usageMetadata']['totalTokenCount'] ?? null,
+                    'model_name' => self::MODEL_NAME,
+                    'context_data' => $context,
+                    'status' => 'success',
+                ]);
+            }
+
+            // PR18: Record success in fallback engine
+            if ($fallback_engine) {
+                $fallback_engine->record_api_result(true);
+            }
+
             return $parsed_response;
         } catch (\Exception $e) {
             error_log('Homaye Tabesh - Gemini API Error: ' . $e->getMessage());
+            
+            // PR18: Log error to BlackBox
+            if (class_exists('\HomayeTabesh\HT_BlackBox_Logger')) {
+                $logger = new HT_BlackBox_Logger();
+                $logger->log_error($e, [
+                    'user_prompt' => $prompt,
+                    'context' => $context,
+                ]);
+            }
+
+            // PR18: Record failure in fallback engine
+            if ($fallback_engine) {
+                $fallback_engine->record_api_result(false);
+            }
+
             return $this->get_fallback_response($e->getMessage());
         }
     }
