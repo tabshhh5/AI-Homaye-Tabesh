@@ -225,6 +225,18 @@ class HT_Activator
         ) $charset_collate;";
 
         dbDelta($sql);
+
+        // Create Authority Manager overrides table (PR17)
+        if (class_exists('\HomayeTabesh\HT_Authority_Manager')) {
+            $authority_manager = new HT_Authority_Manager();
+            $authority_manager->create_table();
+        }
+
+        // Create Feedback System table (PR17)
+        if (class_exists('\HomayeTabesh\HT_Feedback_System')) {
+            $feedback_system = new HT_Feedback_System();
+            $feedback_system->create_table();
+        }
     }
 
     /**

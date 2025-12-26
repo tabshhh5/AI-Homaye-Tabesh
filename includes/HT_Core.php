@@ -227,6 +227,26 @@ final class HT_Core
     public ?HT_Access_Control_Manager $access_control = null;
 
     /**
+     * Authority Manager (PR17 - Knowledge Conflict Resolution)
+     */
+    public ?HT_Authority_Manager $authority_manager = null;
+
+    /**
+     * Action Orchestrator (PR17 - Multi-Step Operations)
+     */
+    public ?HT_Action_Orchestrator $action_orchestrator = null;
+
+    /**
+     * Feedback System (PR17 - User Feedback & Review Queue)
+     */
+    public ?HT_Feedback_System $feedback_system = null;
+
+    /**
+     * Feedback REST API (PR17 - Feedback Endpoints)
+     */
+    public ?HT_Feedback_REST_API $feedback_api = null;
+
+    /**
      * Get singleton instance
      *
      * @return self
@@ -319,6 +339,12 @@ final class HT_Core
         $this->behavior_tracker = new HT_User_Behavior_Tracker();
         $this->access_control = new HT_Access_Control_Manager();
 
+        // Initialize PR17 - Core Orchestrator Upgrade
+        $this->authority_manager = new HT_Authority_Manager();
+        $this->action_orchestrator = new HT_Action_Orchestrator($this);
+        $this->feedback_system = new HT_Feedback_System();
+        $this->feedback_api = new HT_Feedback_REST_API();
+
         // Initialize default knowledge base on first load
         add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
         
@@ -391,6 +417,15 @@ final class HT_Core
         add_action('homa_cleanup_behavior_logs', function() {
             $behavior_tracker = new HT_User_Behavior_Tracker();
             $behavior_tracker->cleanup_old_records(90); // Clean records older than 90 days
+        });
+
+        // Schedule feedback cleanup (PR17)
+        if (!wp_next_scheduled('homa_cleanup_feedback')) {
+            wp_schedule_event(time(), 'monthly', 'homa_cleanup_feedback');
+        }
+        add_action('homa_cleanup_feedback', function() {
+            $feedback_system = new HT_Feedback_System();
+            $feedback_system->cleanup_old_feedback(90); // Clean resolved feedback older than 90 days
         });
 
         // Hook 404 tracking for behavior analysis (PR16)
