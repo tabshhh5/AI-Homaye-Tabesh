@@ -187,6 +187,26 @@ final class HT_Core
     public ?HT_Diplomacy_Test_Handlers $diplomacy_test_handlers = null;
 
     /**
+     * User Role Resolver (PR15 - Multi-Role Intelligence)
+     */
+    public ?HT_User_Role_Resolver $role_resolver = null;
+
+    /**
+     * Intruder Pattern Matcher (PR15 - Security Detection)
+     */
+    public ?HT_Intruder_Pattern_Matcher $intruder_detector = null;
+
+    /**
+     * Dynamic Chat Capabilities (PR15 - Role-Based UI)
+     */
+    public ?HT_Dynamic_Chat_Capabilities $chat_capabilities = null;
+
+    /**
+     * Admin Security Alerts (PR15 - Intruder Notification)
+     */
+    public ?HT_Admin_Security_Alerts $security_alerts = null;
+
+    /**
      * Get singleton instance
      *
      * @return self
@@ -267,6 +287,12 @@ final class HT_Core
         $this->diplomacy_frontend = new HT_Diplomacy_Frontend();
         $this->diplomacy_test_handlers = new HT_Diplomacy_Test_Handlers();
 
+        // Initialize PR15 - Multi-Role Intelligence & Intruder Detection
+        $this->role_resolver = new HT_User_Role_Resolver();
+        $this->intruder_detector = new HT_Intruder_Pattern_Matcher();
+        $this->chat_capabilities = new HT_Dynamic_Chat_Capabilities();
+        $this->security_alerts = new HT_Admin_Security_Alerts();
+
         // Initialize default knowledge base on first load
         add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
         
@@ -313,6 +339,15 @@ final class HT_Core
             wp_schedule_event(time(), 'weekly', 'homa_cleanup_hook_events');
         }
         add_action('homa_cleanup_hook_events', [HT_Hook_Observer_Service::class, 'cleanup_old_events']);
+
+        // Schedule security log cleanup (PR15)
+        if (!wp_next_scheduled('homa_cleanup_security_logs')) {
+            wp_schedule_event(time(), 'weekly', 'homa_cleanup_security_logs');
+        }
+        add_action('homa_cleanup_security_logs', function() {
+            $security_alerts = new HT_Admin_Security_Alerts();
+            $security_alerts->cleanup_old_logs(90); // Clean logs older than 90 days
+        });
     }
 
     /**
@@ -329,6 +364,8 @@ final class HT_Core
         add_action('rest_api_init', [$this->lead_api, 'register_endpoints']); // PR11
         add_action('rest_api_init', [$this->postpurchase_api, 'register_endpoints']); // PR12
         add_action('rest_api_init', [$this->observer_api, 'register_endpoints']); // PR13
+        add_action('rest_api_init', [$this->chat_capabilities, 'register_endpoints']); // PR15
+        add_action('rest_api_init', [$this->security_alerts, 'register_endpoints']); // PR15
         
         // Initialize Vault REST API (PR7)
         HT_Vault_REST_API::init();

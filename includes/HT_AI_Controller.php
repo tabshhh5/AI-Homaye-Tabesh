@@ -118,6 +118,19 @@ class HT_AI_Controller
         // Sanitize user input
         $message = $this->prompt_builder->sanitize_input($message);
 
+        // Get user role context (PR15)
+        $role_resolver = HT_Core::instance()->role_resolver;
+        $user_role_context = $role_resolver->get_homa_user_context();
+
+        // Check if user is blocked (intruder)
+        if (isset($user_role_context['blocked']) && $user_role_context['blocked']) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'response' => 'دسترسی شما به دلیل فعالیت‌های مشکوک محدود شده است.',
+                'blocked' => true,
+            ], 403);
+        }
+
         // Build user context
         $user_context = [
             'user_identifier' => $user_id,
@@ -125,10 +138,15 @@ class HT_AI_Controller
             'current_page' => $context['page'] ?? '',
             'current_element' => $context['element'] ?? '',
             'timestamp' => current_time('mysql'),
+            'user_role_context' => $user_role_context, // Add role context
         ];
 
         // Generate decision
         $result = $this->inference_engine->generate_decision($user_context);
+
+        // Filter response based on user capabilities (PR15)
+        $chat_capabilities = HT_Core::instance()->chat_capabilities;
+        $result = $chat_capabilities->filter_ai_response($result, $user_role_context);
 
         // Return response
         return new \WP_REST_Response($result, $result['success'] ? 200 : 500);
