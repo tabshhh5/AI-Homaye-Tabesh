@@ -81,10 +81,15 @@ final class HT_Core
      */
     public HT_Parallel_UI $parallel_ui;
 
-    /**
+     /**
      * Admin interface
      */
     public ?HT_Admin $admin = null;
+
+    /**
+     * Atlas API
+     */
+    public ?HT_Atlas_API $atlas_api = null;
 
     /**
      * Get singleton instance
@@ -130,6 +135,9 @@ final class HT_Core
             $this->admin = new HT_Admin();
         }
 
+        // Initialize Atlas API
+        $this->atlas_api = new HT_Atlas_API();
+
         // Initialize default knowledge base on first load
         add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
         
@@ -150,6 +158,7 @@ final class HT_Core
         // اتصال به REST API وردپرس
         add_action('rest_api_init', [$this->eyes, 'register_endpoints']);
         add_action('rest_api_init', [$this->ai_controller, 'register_endpoints']);
+        add_action('rest_api_init', [$this->atlas_api, 'register_endpoints']);
         
         // Initialize Vault REST API (PR7)
         HT_Vault_REST_API::init();

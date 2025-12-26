@@ -56,6 +56,15 @@ class HT_Admin
             'homaye-tabesh-personas',
             [$this, 'render_personas_page']
         );
+
+        add_submenu_page(
+            'homaye-tabesh',
+            __('مرکز کنترل اطلس', 'homaye-tabesh'),
+            __('🗺️ مرکز کنترل اطلس', 'homaye-tabesh'),
+            'manage_options',
+            'homaye-tabesh-atlas',
+            [$this, 'render_atlas_page']
+        );
     }
 
     /**
@@ -350,6 +359,49 @@ class HT_Admin
                     <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render Atlas Control Center page
+     */
+    public function render_atlas_page(): void
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        // Enqueue Atlas React app
+        wp_enqueue_script(
+            'atlas-dashboard',
+            HT_PLUGIN_URL . 'assets/build/atlas-dashboard.js',
+            ['wp-element'],
+            HT_VERSION,
+            true
+        );
+
+        wp_enqueue_style(
+            'atlas-dashboard',
+            HT_PLUGIN_URL . 'assets/css/atlas-dashboard.css',
+            [],
+            HT_VERSION
+        );
+
+        // Localize script with API endpoints
+        wp_localize_script('atlas-dashboard', 'atlasConfig', [
+            'apiUrl' => rest_url('homaye/v1/atlas'),
+            'nonce' => wp_create_nonce('wp_rest'),
+            'userRole' => current_user_can('administrator') ? 'administrator' : 'manager',
+        ]);
+
+        ?>
+        <div class="wrap homaye-tabesh-atlas">
+            <h1><?php echo esc_html__('🗺️ مرکز کنترل اطلس (Atlas Control Center)', 'homaye-tabesh'); ?></h1>
+            <p class="description">
+                <?php echo esc_html__('سیستم هوش تجاری و موتور تصمیم‌گیری داده‌محور', 'homaye-tabesh'); ?>
+            </p>
+            <div id="atlas-dashboard-root"></div>
         </div>
         <?php
     }
