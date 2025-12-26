@@ -102,6 +102,11 @@ final class HT_Core
     public ?HT_Admin_Intervention $admin_intervention = null;
 
     /**
+     * Lead REST API (PR11 - Smart Lead Conversion)
+     */
+    public ?HT_Lead_REST_API $lead_api = null;
+
+    /**
      * Get singleton instance
      *
      * @return self
@@ -154,6 +159,9 @@ final class HT_Core
         // Initialize Admin Intervention (PR10 - Live Messaging)
         $this->admin_intervention = HT_Admin_Intervention::instance();
 
+        // Initialize Lead REST API (PR11 - Smart Lead Conversion & OTP)
+        $this->lead_api = new HT_Lead_REST_API();
+
         // Initialize default knowledge base on first load
         add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
         
@@ -162,6 +170,12 @@ final class HT_Core
             wp_schedule_event(time(), 'daily', 'homa_cleanup_expired_sessions');
         }
         add_action('homa_cleanup_expired_sessions', [HT_Vault_Manager::class, 'cleanup_expired_sessions']);
+
+        // Schedule OTP cleanup cron job (PR11)
+        if (!wp_next_scheduled('homa_cleanup_expired_otps')) {
+            wp_schedule_event(time(), 'hourly', 'homa_cleanup_expired_otps');
+        }
+        add_action('homa_cleanup_expired_otps', [Homa_OTP_Core_Engine::class, 'cleanup_expired_otps']);
     }
 
     /**
@@ -175,6 +189,7 @@ final class HT_Core
         add_action('rest_api_init', [$this->eyes, 'register_endpoints']);
         add_action('rest_api_init', [$this->ai_controller, 'register_endpoints']);
         add_action('rest_api_init', [$this->atlas_api, 'register_endpoints']);
+        add_action('rest_api_init', [$this->lead_api, 'register_endpoints']); // PR11
         
         // Initialize Vault REST API (PR7)
         HT_Vault_REST_API::init();

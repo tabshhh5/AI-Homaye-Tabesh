@@ -157,6 +157,52 @@ class HT_Activator
         ) $charset_collate;";
 
         dbDelta($sql);
+
+        // Create Smart Lead Conversion table (PR11)
+        $table_name = $wpdb->prefix . 'homa_leads';
+
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) DEFAULT NULL,
+            user_id_or_token varchar(100) NOT NULL,
+            lead_score int(11) DEFAULT 0,
+            lead_status varchar(50) DEFAULT 'new',
+            requirements_summary json DEFAULT NULL,
+            contact_info varchar(100) DEFAULT NULL,
+            contact_name varchar(100) DEFAULT NULL,
+            source_referral varchar(50) DEFAULT 'organic',
+            draft_order_id bigint(20) DEFAULT NULL,
+            created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+            updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY user_id (user_id),
+            KEY user_id_or_token (user_id_or_token),
+            KEY lead_score (lead_score),
+            KEY lead_status (lead_status),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+
+        dbDelta($sql);
+
+        // Create OTP verification table (PR11)
+        $table_name = $wpdb->prefix . 'homa_otp';
+
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            phone_number varchar(20) NOT NULL,
+            otp_code varchar(10) NOT NULL,
+            session_token varchar(100) DEFAULT NULL,
+            attempts int(11) DEFAULT 0,
+            is_verified tinyint(1) DEFAULT 0,
+            created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+            expires_at timestamp DEFAULT NULL,
+            PRIMARY KEY  (id),
+            KEY phone_number (phone_number),
+            KEY otp_code (otp_code),
+            KEY expires_at (expires_at)
+        ) $charset_collate;";
+
+        dbDelta($sql);
     }
 
     /**
@@ -171,6 +217,15 @@ class HT_Activator
             'ht_tracking_enabled' => true,
             'ht_divi_integration' => true,
             'ht_min_score_threshold' => 50,
+            // MeliPayamak settings (PR11)
+            'ht_melipayamak_username' => '',
+            'ht_melipayamak_password' => '',
+            'ht_melipayamak_from_number' => '',
+            'ht_melipayamak_otp_pattern' => '',
+            'ht_melipayamak_lead_notification_pattern' => '',
+            'ht_admin_phone_number' => '',
+            'ht_lead_notification_enabled' => true,
+            'ht_lead_hot_score_threshold' => 70,
         ];
 
         foreach ($defaults as $key => $value) {

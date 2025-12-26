@@ -254,6 +254,111 @@ const AtlasSettings = () => {
                         توصیه: حداقل 30 روز برای تحلیل‌های معتبر
                     </div>
                 </div>
+
+                {/* MeliPayamak SMS Settings - PR11 */}
+                <div className="setting-group sms-settings">
+                    <h3>📱 تنظیمات ملی‌پیامک (SMS Service)</h3>
+                    <p className="setting-description">
+                        پیکربندی سرویس ارسال پیامک برای OTP و اطلاع‌رسانی لیدهای Hot
+                    </p>
+
+                    <div className="sms-inputs">
+                        <div className="input-field">
+                            <label>نام کاربری ملی‌پیامک</label>
+                            <input
+                                type="text"
+                                value={settings?.melipayamak_username || ''}
+                                onChange={(e) => handleSettingChange('melipayamak_username', e.target.value)}
+                                placeholder="username"
+                            />
+                        </div>
+
+                        <div className="input-field">
+                            <label>رمز عبور</label>
+                            <input
+                                type="password"
+                                value={settings?.melipayamak_password || ''}
+                                onChange={(e) => handleSettingChange('melipayamak_password', e.target.value)}
+                                placeholder="password"
+                            />
+                        </div>
+
+                        <div className="input-field">
+                            <label>شماره فرستنده</label>
+                            <input
+                                type="text"
+                                value={settings?.melipayamak_from_number || ''}
+                                onChange={(e) => handleSettingChange('melipayamak_from_number', e.target.value)}
+                                placeholder="+981000..."
+                                dir="ltr"
+                            />
+                        </div>
+
+                        <div className="input-field">
+                            <label>کد الگوی OTP</label>
+                            <input
+                                type="text"
+                                value={settings?.melipayamak_otp_pattern || ''}
+                                onChange={(e) => handleSettingChange('melipayamak_otp_pattern', e.target.value)}
+                                placeholder="pattern_code"
+                            />
+                            <span className="field-help">کد الگوی پیامک برای ارسال کد تایید</span>
+                        </div>
+
+                        <div className="input-field">
+                            <label>کد الگوی اطلاع‌رسانی لید</label>
+                            <input
+                                type="text"
+                                value={settings?.melipayamak_lead_notification_pattern || ''}
+                                onChange={(e) => handleSettingChange('melipayamak_lead_notification_pattern', e.target.value)}
+                                placeholder="pattern_code"
+                            />
+                            <span className="field-help">کد الگوی پیامک برای اطلاع‌رسانی لیدهای جدید</span>
+                        </div>
+
+                        <div className="input-field">
+                            <label>شماره موبایل مدیر</label>
+                            <input
+                                type="tel"
+                                value={settings?.admin_phone_number || ''}
+                                onChange={(e) => handleSettingChange('admin_phone_number', e.target.value)}
+                                placeholder="09123456789"
+                                dir="ltr"
+                            />
+                            <span className="field-help">برای دریافت هشدارهای لیدهای Hot</span>
+                        </div>
+                    </div>
+
+                    <div className="setting-toggles">
+                        <label className="toggle-item">
+                            <span>فعال‌سازی اطلاع‌رسانی لید</span>
+                            <input
+                                type="checkbox"
+                                checked={settings?.lead_notification_enabled !== false}
+                                onChange={(e) => handleSettingChange('lead_notification_enabled', e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
+                        </label>
+
+                        <div className="input-field inline">
+                            <label>حداقل امتیاز برای اطلاع‌رسانی (Hot Lead Threshold)</label>
+                            <input
+                                type="number"
+                                value={settings?.lead_hot_score_threshold || 70}
+                                onChange={(e) => handleSettingChange('lead_hot_score_threshold', parseInt(e.target.value))}
+                                min="0"
+                                max="100"
+                                style={{ width: '80px' }}
+                            />
+                            <span className="field-help">فقط لیدهای با امتیاز بالاتر از این عدد اطلاع‌رسانی می‌شوند</span>
+                        </div>
+                    </div>
+
+                    <div className="info-box">
+                        💡 <strong>نکته:</strong> برای دریافت کد الگوها، به پنل ملی‌پیامک مراجعه کنید. 
+                        استفاده از الگوها از بلک‌لیست شدن توسط مخابرات جلوگیری می‌کند.
+                    </div>
+                </div>
             </div>
 
             {/* Save Button */}
