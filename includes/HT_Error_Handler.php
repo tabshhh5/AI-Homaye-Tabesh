@@ -257,12 +257,23 @@ class HT_Error_Handler
     }
     
     /**
-     * Reset emergency mode (use only for testing or after system recovery)
+     * Reset emergency mode
      * 
+     * WARNING: This method should ONLY be used in these scenarios:
+     * 1. Unit testing - to reset state between tests
+     * 2. Manual recovery - by system administrator after investigating root cause
+     * 
+     * DO NOT call this in production code as it could mask recurring issues.
+     * Emergency mode is automatically reset on the next request.
+     * 
+     * @internal This method is for testing and manual recovery only
      * @return void
      */
     public static function reset_emergency_mode(): void
     {
+        // Log the reset for audit trail
+        @error_log('[Homaye Tabesh - WARNING] Emergency mode manually reset - investigate root cause');
+        
         self::$emergency_mode = false;
         self::$recursion_depth = 0;
     }

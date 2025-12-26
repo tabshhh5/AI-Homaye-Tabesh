@@ -17,7 +17,7 @@ echo "=== Homaye Tabesh Plugin Health Check ===\n\n";
 if (!file_exists('wp-load.php')) {
     echo "❌ ERROR: This script must be run from WordPress root directory\n";
     echo "   Current directory: " . getcwd() . "\n";
-    echo "   Please cd to your WordPress installation and run: php wp-content/plugins/AI-Homaye-Tabesh/validate-plugin-health.php\n";
+    echo "   Please cd to your WordPress installation and run the script from there\n";
     exit(1);
 }
 
@@ -30,9 +30,26 @@ require_once 'wp-load.php';
 echo "✓ WordPress loaded successfully\n";
 
 // Check if plugin is installed
-$plugin_dir = WP_CONTENT_DIR . '/plugins/AI-Homaye-Tabesh';
+$plugin_slug = 'AI-Homaye-Tabesh'; // Can be customized if installed with different name
+$plugin_dir = WP_CONTENT_DIR . '/plugins/' . $plugin_slug;
+
+// Try to detect plugin directory if default name doesn't exist
 if (!is_dir($plugin_dir)) {
-    echo "❌ ERROR: Plugin directory not found at: $plugin_dir\n";
+    // Search for the plugin by main file
+    $all_plugins = get_plugins();
+    foreach ($all_plugins as $plugin_path => $plugin_data) {
+        if (basename($plugin_path) === 'homaye-tabesh.php') {
+            $plugin_slug = dirname($plugin_path);
+            $plugin_dir = WP_CONTENT_DIR . '/plugins/' . $plugin_slug;
+            break;
+        }
+    }
+}
+
+if (!is_dir($plugin_dir)) {
+    echo "❌ ERROR: Plugin directory not found. Searched for:\n";
+    echo "   - $plugin_dir\n";
+    echo "   Make sure the plugin is installed in wp-content/plugins/\n";
     exit(1);
 }
 
@@ -94,9 +111,10 @@ try {
 }
 
 // Check if plugin is active
-if (!is_plugin_active('AI-Homaye-Tabesh/homaye-tabesh.php')) {
+$plugin_file = $plugin_slug . '/homaye-tabesh.php';
+if (!is_plugin_active($plugin_file)) {
     echo "\n⚠️  WARNING: Plugin is not currently active\n";
-    echo "   To activate, run: wp plugin activate AI-Homaye-Tabesh/homaye-tabesh.php\n";
+    echo "   To activate, run: wp plugin activate $plugin_file\n";
 } else {
     echo "✓ Plugin is active\n";
     
