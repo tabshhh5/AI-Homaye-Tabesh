@@ -130,11 +130,14 @@ class Homa_Render_Buffer_Filter
         // Suppress errors for malformed HTML
         libxml_use_internal_errors(true);
         
-        // Add UTF-8 meta tag to ensure proper encoding
-        $html = mb_convert_encoding($buffer, 'HTML-ENTITIES', 'UTF-8');
+        // Use proper HTML5 charset declaration for UTF-8 compatibility
+        // This approach is compatible with PHP 8.2+ and avoids deprecated mb_convert_encoding
+        if (!preg_match('/<meta[^>]+charset/i', $buffer)) {
+            $buffer = '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">' . $buffer;
+        }
         
-        // Load full HTML document properly
-        @$dom->loadHTML($html);
+        // Load full HTML document properly without the flags that strip content
+        @$dom->loadHTML($buffer);
         
         libxml_clear_errors();
 

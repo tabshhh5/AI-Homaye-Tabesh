@@ -238,7 +238,7 @@ class HT_WAF_Core_Engine
     private function contains_sql_injection(string $value): bool
     {
         foreach (self::SQL_PATTERNS as $pattern) {
-            if (preg_match('/' . $pattern . '/i', $value)) {
+            if (preg_match('~' . $pattern . '~i', $value)) {
                 return true;
             }
         }
@@ -254,7 +254,7 @@ class HT_WAF_Core_Engine
     private function contains_xss(string $value): bool
     {
         foreach (self::XSS_PATTERNS as $pattern) {
-            if (preg_match('/' . $pattern . '/i', $value)) {
+            if (preg_match('~' . $pattern . '~i', $value)) {
                 return true;
             }
         }
@@ -270,7 +270,7 @@ class HT_WAF_Core_Engine
     private function contains_rce(string $value): bool
     {
         foreach (self::RCE_PATTERNS as $pattern) {
-            if (preg_match('/' . $pattern . '/i', $value)) {
+            if (preg_match('~' . $pattern . '~i', $value)) {
                 return true;
             }
         }
@@ -287,7 +287,7 @@ class HT_WAF_Core_Engine
         $request_uri = $_SERVER['REQUEST_URI'] ?? '';
         
         foreach (self::SENSITIVE_FILES as $pattern) {
-            if (preg_match('/' . $pattern . '/i', $request_uri)) {
+            if (preg_match('~' . $pattern . '~i', $request_uri)) {
                 return true;
             }
         }

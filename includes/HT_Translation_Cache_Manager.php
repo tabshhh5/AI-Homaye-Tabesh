@@ -190,7 +190,7 @@ class HT_Translation_Cache_Manager
         {$text}";
 
         try {
-            $response = $this->gemini->generate_content($prompt, [], false);
+            $response = $this->gemini->generate_content($prompt, [], []);
             
             if (isset($response['text'])) {
                 return trim($response['text']);
