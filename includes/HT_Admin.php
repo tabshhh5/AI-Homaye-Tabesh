@@ -83,6 +83,15 @@ class HT_Admin
             'homaye-tabesh-security',
             [$this, 'render_security_page']
         );
+
+        add_submenu_page(
+            'homaye-tabesh',
+            __('سوپر پنل هما', 'homaye-tabesh'),
+            __('🎛️ سوپر پنل', 'homaye-tabesh'),
+            'manage_options',
+            'homaye-tabesh-super-console',
+            [$this, 'render_super_console_page']
+        );
     }
 
     /**
@@ -1130,6 +1139,44 @@ class HT_Admin
                     margin-bottom: 15px;
                 }
             </style>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render Super Console page (PR19)
+     *
+     * @return void
+     */
+    public function render_super_console_page(): void
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        // Enqueue Super Console React app
+        wp_enqueue_script(
+            'super-console',
+            HT_PLUGIN_URL . 'assets/build/super-console.js',
+            ['wp-element'],
+            HT_VERSION,
+            true
+        );
+
+        // Localize script with API endpoints
+        $user = wp_get_current_user();
+        $is_admin = in_array('administrator', (array) $user->roles, true);
+        
+        wp_localize_script('super-console', 'homaConsoleConfig', [
+            'apiUrl' => rest_url('homaye/v1/console'),
+            'nonce' => wp_create_nonce('wp_rest'),
+            'userRole' => $is_admin ? 'administrator' : 'manager',
+            'userId' => get_current_user_id(),
+        ]);
+
+        ?>
+        <div class="wrap homaye-tabesh-super-console">
+            <div id="homa-super-console-root"></div>
         </div>
         <?php
     }

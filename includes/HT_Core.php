@@ -287,6 +287,16 @@ final class HT_Core
     public ?HT_Resilience_REST_API $resilience_api = null;
 
     /**
+     * System Diagnostics (PR19 - Health Checker)
+     */
+    public ?HT_System_Diagnostics $system_diagnostics = null;
+
+    /**
+     * Console Analytics API (PR19 - Super Console Endpoints)
+     */
+    public ?HT_Console_Analytics_API $console_api = null;
+
+    /**
      * Get singleton instance
      *
      * @return self
@@ -394,6 +404,10 @@ final class HT_Core
         $this->numerical_formatter = new HT_Numerical_Formatter();
         $this->auto_cleanup = new HT_Auto_Cleanup();
         $this->resilience_api = new HT_Resilience_REST_API();
+
+        // Initialize PR19 - Super Console (Homa Control Center)
+        $this->system_diagnostics = new HT_System_Diagnostics();
+        $this->console_api = new HT_Console_Analytics_API();
 
         // Initialize default knowledge base on first load
         add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
