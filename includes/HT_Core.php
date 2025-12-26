@@ -311,8 +311,20 @@ final class HT_Core
      */
     private function __construct()
     {
-        $this->init_services();
-        $this->register_hooks();
+        try {
+            $this->init_services();
+            $this->register_hooks();
+        } catch (\Throwable $e) {
+            HT_Error_Handler::log_exception($e, 'core_init');
+            
+            // Display admin notice
+            HT_Error_Handler::admin_notice(
+                sprintf(
+                    __('خطا در راه‌اندازی هسته افزونه: %s', 'homaye-tabesh'),
+                    $e->getMessage()
+                )
+            );
+        }
     }
 
     /**
@@ -322,205 +334,273 @@ final class HT_Core
      */
     private function init_services(): void
     {
-        $this->brain            = new HT_Gemini_Client();
-        $this->eyes             = new HT_Telemetry();
-        $this->memory           = new HT_Persona_Manager();
-        $this->knowledge        = new HT_Knowledge_Base();
-        $this->woo_context      = new HT_WooCommerce_Context();
-        $this->divi_bridge      = new HT_Divi_Bridge();
-        $this->decision_trigger = new HT_Decision_Trigger();
-        $this->inference_engine = new HT_Inference_Engine();
-        $this->ai_controller    = new HT_AI_Controller();
-        $this->perception_bridge = new HT_Perception_Bridge($this);
-        $this->cart_manager     = new HT_Cart_Manager($this);
-        $this->parallel_ui      = new HT_Parallel_UI($this);
+        // Wrap each service initialization in try/catch to prevent cascade failures
+        $this->brain            = $this->safe_init(fn() => new HT_Gemini_Client(), 'HT_Gemini_Client');
+        $this->eyes             = $this->safe_init(fn() => new HT_Telemetry(), 'HT_Telemetry');
+        $this->memory           = $this->safe_init(fn() => new HT_Persona_Manager(), 'HT_Persona_Manager');
+        $this->knowledge        = $this->safe_init(fn() => new HT_Knowledge_Base(), 'HT_Knowledge_Base');
+        $this->woo_context      = $this->safe_init(fn() => new HT_WooCommerce_Context(), 'HT_WooCommerce_Context');
+        $this->divi_bridge      = $this->safe_init(fn() => new HT_Divi_Bridge(), 'HT_Divi_Bridge');
+        $this->decision_trigger = $this->safe_init(fn() => new HT_Decision_Trigger(), 'HT_Decision_Trigger');
+        $this->inference_engine = $this->safe_init(fn() => new HT_Inference_Engine(), 'HT_Inference_Engine');
+        $this->ai_controller    = $this->safe_init(fn() => new HT_AI_Controller(), 'HT_AI_Controller');
+        $this->perception_bridge = $this->safe_init(fn() => new HT_Perception_Bridge($this), 'HT_Perception_Bridge');
+        $this->cart_manager     = $this->safe_init(fn() => new HT_Cart_Manager($this), 'HT_Cart_Manager');
+        $this->parallel_ui      = $this->safe_init(fn() => new HT_Parallel_UI($this), 'HT_Parallel_UI');
         
         // Initialize admin only in admin area
         if (is_admin()) {
-            $this->admin = new HT_Admin();
+            $this->admin = $this->safe_init(fn() => new HT_Admin(), 'HT_Admin');
         }
 
         // Initialize Atlas API (autoloaded via PSR-4 from includes/HT_Atlas_API.php)
-        $this->atlas_api = new HT_Atlas_API();
+        $this->atlas_api = $this->safe_init(fn() => new HT_Atlas_API(), 'HT_Atlas_API');
 
         // Initialize DOM Action Controller (PR10 - Visual Guidance)
-        $this->dom_controller = HT_DOM_Action_Controller::instance();
+        $this->dom_controller = $this->safe_init(fn() => HT_DOM_Action_Controller::instance(), 'HT_DOM_Action_Controller');
 
         // Initialize Admin Intervention (PR10 - Live Messaging)
-        $this->admin_intervention = HT_Admin_Intervention::instance();
+        $this->admin_intervention = $this->safe_init(fn() => HT_Admin_Intervention::instance(), 'HT_Admin_Intervention');
 
         // Initialize Lead REST API (PR11 - Smart Lead Conversion & OTP)
-        $this->lead_api = new HT_Lead_REST_API();
+        $this->lead_api = $this->safe_init(fn() => new HT_Lead_REST_API(), 'HT_Lead_REST_API');
 
         // Initialize PR12 - Post-Purchase Automation & Plugin Inspector
-        $this->order_tracker = new HT_Order_Tracker();
-        $this->shipping_bridge = new HT_Shipping_API_Bridge();
-        $this->support_ticketing = new HT_Support_Ticketing();
-        $this->retention_engine = new HT_Retention_Engine();
-        $this->plugin_scanner = new HT_Plugin_Scanner();
-        $this->metadata_engine = new HT_Metadata_Mining_Engine();
-        $this->hook_observer = new HT_Hook_Observer_Service();
-        $this->context_generator = new HT_Dynamic_Context_Generator();
-        $this->postpurchase_api = new HT_PostPurchase_REST_API();
+        $this->order_tracker = $this->safe_init(fn() => new HT_Order_Tracker(), 'HT_Order_Tracker');
+        $this->shipping_bridge = $this->safe_init(fn() => new HT_Shipping_API_Bridge(), 'HT_Shipping_API_Bridge');
+        $this->support_ticketing = $this->safe_init(fn() => new HT_Support_Ticketing(), 'HT_Support_Ticketing');
+        $this->retention_engine = $this->safe_init(fn() => new HT_Retention_Engine(), 'HT_Retention_Engine');
+        $this->plugin_scanner = $this->safe_init(fn() => new HT_Plugin_Scanner(), 'HT_Plugin_Scanner');
+        $this->metadata_engine = $this->safe_init(fn() => new HT_Metadata_Mining_Engine(), 'HT_Metadata_Mining_Engine');
+        $this->hook_observer = $this->safe_init(fn() => new HT_Hook_Observer_Service(), 'HT_Hook_Observer_Service');
+        $this->context_generator = $this->safe_init(fn() => new HT_Dynamic_Context_Generator(), 'HT_Dynamic_Context_Generator');
+        $this->postpurchase_api = $this->safe_init(fn() => new HT_PostPurchase_REST_API(), 'HT_PostPurchase_REST_API');
 
         // Initialize hook observers (PR12)
-        $this->hook_observer->init_observers();
+        $this->safe_call(function() {
+            if ($this->hook_observer !== null) {
+                $this->hook_observer->init_observers();
+            }
+        }, 'hook_observer_init');
 
         // Initialize PR13 - Global Observer Core
-        $this->global_observer = HT_Global_Observer_Core::instance();
-        $this->observer_api = new HT_Global_Observer_API();
+        $this->global_observer = $this->safe_init(fn() => HT_Global_Observer_Core::instance(), 'HT_Global_Observer_Core');
+        $this->observer_api = $this->safe_init(fn() => new HT_Global_Observer_API(), 'HT_Global_Observer_API');
 
         // Initialize PR14 - Smart Diplomacy (GeoLocation & Translation)
-        $this->geo_service = new HT_GeoLocation_Service();
-        $this->translation_cache = new HT_Translation_Cache_Manager();
-        $this->render_buffer_filter = new Homa_Render_Buffer_Filter();
-        $this->diplomacy_frontend = new HT_Diplomacy_Frontend();
-        $this->diplomacy_test_handlers = new HT_Diplomacy_Test_Handlers();
+        $this->geo_service = $this->safe_init(fn() => new HT_GeoLocation_Service(), 'HT_GeoLocation_Service');
+        $this->translation_cache = $this->safe_init(fn() => new HT_Translation_Cache_Manager(), 'HT_Translation_Cache_Manager');
+        $this->render_buffer_filter = $this->safe_init(fn() => new Homa_Render_Buffer_Filter(), 'Homa_Render_Buffer_Filter');
+        $this->diplomacy_frontend = $this->safe_init(fn() => new HT_Diplomacy_Frontend(), 'HT_Diplomacy_Frontend');
+        $this->diplomacy_test_handlers = $this->safe_init(fn() => new HT_Diplomacy_Test_Handlers(), 'HT_Diplomacy_Test_Handlers');
 
         // Initialize PR15 - Multi-Role Intelligence & Intruder Detection
-        $this->role_resolver = new HT_User_Role_Resolver();
-        $this->intruder_detector = new HT_Intruder_Pattern_Matcher();
-        $this->chat_capabilities = new HT_Dynamic_Chat_Capabilities();
-        $this->security_alerts = new HT_Admin_Security_Alerts();
+        $this->role_resolver = $this->safe_init(fn() => new HT_User_Role_Resolver(), 'HT_User_Role_Resolver');
+        $this->intruder_detector = $this->safe_init(fn() => new HT_Intruder_Pattern_Matcher(), 'HT_Intruder_Pattern_Matcher');
+        $this->chat_capabilities = $this->safe_init(fn() => new HT_Dynamic_Chat_Capabilities(), 'HT_Dynamic_Chat_Capabilities');
+        $this->security_alerts = $this->safe_init(fn() => new HT_Admin_Security_Alerts(), 'HT_Admin_Security_Alerts');
 
         // Initialize PR16 - Homa Guardian (Security System)
-        $this->waf_engine = new HT_WAF_Core_Engine();
-        $this->llm_shield = new HT_LLM_Shield_Layer();
-        $this->behavior_tracker = new HT_User_Behavior_Tracker();
-        $this->access_control = new HT_Access_Control_Manager();
+        $this->waf_engine = $this->safe_init(fn() => new HT_WAF_Core_Engine(), 'HT_WAF_Core_Engine');
+        $this->llm_shield = $this->safe_init(fn() => new HT_LLM_Shield_Layer(), 'HT_LLM_Shield_Layer');
+        $this->behavior_tracker = $this->safe_init(fn() => new HT_User_Behavior_Tracker(), 'HT_User_Behavior_Tracker');
+        $this->access_control = $this->safe_init(fn() => new HT_Access_Control_Manager(), 'HT_Access_Control_Manager');
 
         // Initialize PR17 - Core Orchestrator Upgrade
-        $this->authority_manager = new HT_Authority_Manager();
-        $this->action_orchestrator = new HT_Action_Orchestrator($this);
-        $this->feedback_system = new HT_Feedback_System();
-        $this->feedback_api = new HT_Feedback_REST_API();
+        $this->authority_manager = $this->safe_init(fn() => new HT_Authority_Manager(), 'HT_Authority_Manager');
+        $this->action_orchestrator = $this->safe_init(fn() => new HT_Action_Orchestrator($this), 'HT_Action_Orchestrator');
+        $this->feedback_system = $this->safe_init(fn() => new HT_Feedback_System(), 'HT_Feedback_System');
+        $this->feedback_api = $this->safe_init(fn() => new HT_Feedback_REST_API(), 'HT_Feedback_REST_API');
 
         // Initialize PR18 - Resilience & Knowledge Transfer
-        $this->blackbox_logger = new HT_BlackBox_Logger();
-        $this->fallback_engine = new HT_Fallback_Engine();
-        $this->query_optimizer = new HT_Query_Optimizer();
-        $this->data_exporter = new HT_Data_Exporter();
-        $this->background_processor = new HT_Background_Processor();
-        $this->numerical_formatter = new HT_Numerical_Formatter();
-        $this->auto_cleanup = new HT_Auto_Cleanup();
-        $this->resilience_api = new HT_Resilience_REST_API();
+        $this->blackbox_logger = $this->safe_init(fn() => new HT_BlackBox_Logger(), 'HT_BlackBox_Logger');
+        $this->fallback_engine = $this->safe_init(fn() => new HT_Fallback_Engine(), 'HT_Fallback_Engine');
+        $this->query_optimizer = $this->safe_init(fn() => new HT_Query_Optimizer(), 'HT_Query_Optimizer');
+        $this->data_exporter = $this->safe_init(fn() => new HT_Data_Exporter(), 'HT_Data_Exporter');
+        $this->background_processor = $this->safe_init(fn() => new HT_Background_Processor(), 'HT_Background_Processor');
+        $this->numerical_formatter = $this->safe_init(fn() => new HT_Numerical_Formatter(), 'HT_Numerical_Formatter');
+        $this->auto_cleanup = $this->safe_init(fn() => new HT_Auto_Cleanup(), 'HT_Auto_Cleanup');
+        $this->resilience_api = $this->safe_init(fn() => new HT_Resilience_REST_API(), 'HT_Resilience_REST_API');
 
         // Initialize PR19 - Super Console (Homa Control Center)
-        $this->system_diagnostics = new HT_System_Diagnostics();
-        $this->console_api = new HT_Console_Analytics_API();
+        $this->system_diagnostics = $this->safe_init(fn() => new HT_System_Diagnostics(), 'HT_System_Diagnostics');
+        $this->console_api = $this->safe_init(fn() => new HT_Console_Analytics_API(), 'HT_Console_Analytics_API');
 
         // Initialize default knowledge base on first load
-        add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
+        $this->safe_call(fn() => add_action('init', [$this->knowledge, 'init_default_knowledge_base']), 'kb_init_hook');
         
         // Schedule cleanup cron job (PR7)
-        if (!wp_next_scheduled('homa_cleanup_expired_sessions')) {
-            wp_schedule_event(time(), 'daily', 'homa_cleanup_expired_sessions');
-        }
-        add_action('homa_cleanup_expired_sessions', [HT_Vault_Manager::class, 'cleanup_expired_sessions']);
+        $this->safe_call(function() {
+            if (!wp_next_scheduled('homa_cleanup_expired_sessions')) {
+                wp_schedule_event(time(), 'daily', 'homa_cleanup_expired_sessions');
+            }
+            add_action('homa_cleanup_expired_sessions', [HT_Vault_Manager::class, 'cleanup_expired_sessions']);
+        }, 'cron_vault_cleanup');
 
         // Schedule OTP cleanup cron job (PR11)
-        if (!wp_next_scheduled('homa_cleanup_expired_otps')) {
-            wp_schedule_event(time(), 'hourly', 'homa_cleanup_expired_otps');
-        }
-        add_action('homa_cleanup_expired_otps', [Homa_OTP_Core_Engine::class, 'cleanup_expired_otps']);
+        $this->safe_call(function() {
+            if (!wp_next_scheduled('homa_cleanup_expired_otps')) {
+                wp_schedule_event(time(), 'hourly', 'homa_cleanup_expired_otps');
+            }
+            add_action('homa_cleanup_expired_otps', [Homa_OTP_Core_Engine::class, 'cleanup_expired_otps']);
+        }, 'cron_otp_cleanup');
 
         // Schedule retention campaign cron job (PR12)
-        HT_Retention_Engine::schedule_retention_cron();
-        add_action('homa_run_retention_campaign', [HT_Retention_Engine::class, 'run_retention_campaign_cron']);
+        $this->safe_call(fn() => HT_Retention_Engine::schedule_retention_cron(), 'retention_cron_schedule');
+        $this->safe_call(fn() => add_action('homa_run_retention_campaign', [HT_Retention_Engine::class, 'run_retention_campaign_cron']), 'retention_cron_hook');
 
         // Schedule metadata refresh cron job (PR12)
-        HT_Metadata_Mining_Engine::schedule_metadata_refresh();
-        add_action('homa_refresh_plugin_metadata', [HT_Metadata_Mining_Engine::class, 'metadata_refresh_cron']);
+        $this->safe_call(fn() => HT_Metadata_Mining_Engine::schedule_metadata_refresh(), 'metadata_cron_schedule');
+        $this->safe_call(fn() => add_action('homa_refresh_plugin_metadata', [HT_Metadata_Mining_Engine::class, 'metadata_refresh_cron']), 'metadata_cron_hook');
 
         // Schedule translation cache cleanup (PR14)
-        if (!wp_next_scheduled('homa_cleanup_translation_cache')) {
-            wp_schedule_event(time(), 'weekly', 'homa_cleanup_translation_cache');
-        }
-        add_action('homa_cleanup_translation_cache', function() {
-            $cache_manager = new HT_Translation_Cache_Manager();
-            $cache_manager->cleanup_old_cache(90); // Clean translations older than 90 days
-        });
+        $this->safe_call(function() {
+            if (!wp_next_scheduled('homa_cleanup_translation_cache')) {
+                wp_schedule_event(time(), 'weekly', 'homa_cleanup_translation_cache');
+            }
+            add_action('homa_cleanup_translation_cache', function() {
+                $cache_manager = new HT_Translation_Cache_Manager();
+                $cache_manager->cleanup_old_cache(90); // Clean translations older than 90 days
+            });
+        }, 'cron_translation_cleanup');
 
         // Schedule knowledge base auto-sync (PR13)
-        if (!wp_next_scheduled('homa_auto_sync_kb')) {
-            wp_schedule_event(time(), 'twicedaily', 'homa_auto_sync_kb');
-        }
-        add_action('homa_auto_sync_kb', [HT_Knowledge_Base::class, 'auto_sync_metadata']);
+        $this->safe_call(function() {
+            if (!wp_next_scheduled('homa_auto_sync_kb')) {
+                wp_schedule_event(time(), 'twicedaily', 'homa_auto_sync_kb');
+            }
+            add_action('homa_auto_sync_kb', [HT_Knowledge_Base::class, 'auto_sync_metadata']);
+        }, 'cron_kb_sync');
 
         // Schedule feedback SMS on order completion (PR12)
-        add_action('woocommerce_order_status_completed', [$this, 'handle_order_completed']);
+        $this->safe_call(fn() => add_action('woocommerce_order_status_completed', [$this, 'handle_order_completed']), 'order_completed_hook');
 
         // Hook observer cleanup (PR12)
-        if (!wp_next_scheduled('homa_cleanup_hook_events')) {
-            wp_schedule_event(time(), 'weekly', 'homa_cleanup_hook_events');
-        }
-        add_action('homa_cleanup_hook_events', [HT_Hook_Observer_Service::class, 'cleanup_old_events']);
+        $this->safe_call(function() {
+            if (!wp_next_scheduled('homa_cleanup_hook_events')) {
+                wp_schedule_event(time(), 'weekly', 'homa_cleanup_hook_events');
+            }
+            add_action('homa_cleanup_hook_events', [HT_Hook_Observer_Service::class, 'cleanup_old_events']);
+        }, 'cron_hook_cleanup');
 
         // Schedule security log cleanup (PR15)
-        if (!wp_next_scheduled('homa_cleanup_security_logs')) {
-            wp_schedule_event(time(), 'weekly', 'homa_cleanup_security_logs');
-        }
-        add_action('homa_cleanup_security_logs', function() {
-            $security_alerts = new HT_Admin_Security_Alerts();
-            $security_alerts->cleanup_old_logs(90); // Clean logs older than 90 days
-        });
+        $this->safe_call(function() {
+            if (!wp_next_scheduled('homa_cleanup_security_logs')) {
+                wp_schedule_event(time(), 'weekly', 'homa_cleanup_security_logs');
+            }
+            add_action('homa_cleanup_security_logs', function() {
+                $security_alerts = new HT_Admin_Security_Alerts();
+                $security_alerts->cleanup_old_logs(90); // Clean logs older than 90 days
+            });
+        }, 'cron_security_cleanup');
 
         // Schedule WAF blacklist cleanup (PR16)
-        if (!wp_next_scheduled('homa_cleanup_waf_blacklist')) {
-            wp_schedule_event(time(), 'daily', 'homa_cleanup_waf_blacklist');
-        }
-        add_action('homa_cleanup_waf_blacklist', function() {
-            $waf = new HT_WAF_Core_Engine();
-            $waf->cleanup_expired_blocks();
-        });
+        $this->safe_call(function() {
+            if (!wp_next_scheduled('homa_cleanup_waf_blacklist')) {
+                wp_schedule_event(time(), 'daily', 'homa_cleanup_waf_blacklist');
+            }
+            add_action('homa_cleanup_waf_blacklist', function() {
+                $waf = new HT_WAF_Core_Engine();
+                $waf->cleanup_expired_blocks();
+            });
+        }, 'cron_waf_cleanup');
 
         // Schedule behavior tracking cleanup (PR16)
-        if (!wp_next_scheduled('homa_cleanup_behavior_logs')) {
-            wp_schedule_event(time(), 'weekly', 'homa_cleanup_behavior_logs');
-        }
-        add_action('homa_cleanup_behavior_logs', function() {
-            $behavior_tracker = new HT_User_Behavior_Tracker();
-            $behavior_tracker->cleanup_old_records(90); // Clean records older than 90 days
-        });
+        $this->safe_call(function() {
+            if (!wp_next_scheduled('homa_cleanup_behavior_logs')) {
+                wp_schedule_event(time(), 'weekly', 'homa_cleanup_behavior_logs');
+            }
+            add_action('homa_cleanup_behavior_logs', function() {
+                $behavior_tracker = new HT_User_Behavior_Tracker();
+                $behavior_tracker->cleanup_old_records(90); // Clean records older than 90 days
+            });
+        }, 'cron_behavior_cleanup');
 
         // Schedule feedback cleanup (PR17)
-        if (!wp_next_scheduled('homa_cleanup_feedback')) {
-            wp_schedule_event(time(), 'monthly', 'homa_cleanup_feedback');
-        }
-        add_action('homa_cleanup_feedback', function() {
-            $feedback_system = new HT_Feedback_System();
-            $feedback_system->cleanup_old_feedback(90); // Clean resolved feedback older than 90 days
-        });
+        $this->safe_call(function() {
+            if (!wp_next_scheduled('homa_cleanup_feedback')) {
+                wp_schedule_event(time(), 'monthly', 'homa_cleanup_feedback');
+            }
+            add_action('homa_cleanup_feedback', function() {
+                $feedback_system = new HT_Feedback_System();
+                $feedback_system->cleanup_old_feedback(90); // Clean resolved feedback older than 90 days
+            });
+        }, 'cron_feedback_cleanup');
 
         // Schedule BlackBox log cleanup (PR18)
-        $this->blackbox_logger->schedule_cleanup();
-        add_action('ht_blackbox_cleanup', function() {
+        $this->safe_call(function() {
+            if ($this->blackbox_logger !== null) {
+                $this->blackbox_logger->schedule_cleanup();
+            }
+        }, 'blackbox_cron_schedule');
+        $this->safe_call(fn() => add_action('ht_blackbox_cleanup', function() {
             $logger = new HT_BlackBox_Logger();
             $logger->clean_old_logs();
-        });
+        }), 'blackbox_cron_hook');
 
         // Schedule query cache warmup (PR18)
-        $this->query_optimizer->schedule_warmup();
-        add_action('ht_cache_warmup', function() {
+        $this->safe_call(function() {
+            if ($this->query_optimizer !== null) {
+                $this->query_optimizer->schedule_warmup();
+            }
+        }, 'query_optimizer_schedule');
+        $this->safe_call(fn() => add_action('ht_cache_warmup', function() {
             $optimizer = new HT_Query_Optimizer();
             $optimizer->warmup_cache();
-        });
+        }), 'cache_warmup_hook');
 
         // Schedule background job processing (PR18)
-        add_action('ht_process_background_jobs', function() {
+        $this->safe_call(fn() => add_action('ht_process_background_jobs', function() {
             $processor = new HT_Background_Processor();
             $processor->process_jobs();
-        });
+        }), 'background_jobs_hook');
 
         // Schedule auto-cleanup analysis (PR18)
-        $this->auto_cleanup->schedule_analysis();
-        add_action('ht_auto_cleanup_analysis', function() {
+        $this->safe_call(function() {
+            if ($this->auto_cleanup !== null) {
+                $this->auto_cleanup->schedule_analysis();
+            }
+        }, 'auto_cleanup_schedule');
+        $this->safe_call(fn() => add_action('ht_auto_cleanup_analysis', function() {
             $cleanup = new HT_Auto_Cleanup();
             $cleanup->run_analysis();
-        });
+        }), 'auto_cleanup_hook');
 
         // Hook 404 tracking for behavior analysis (PR16)
-        add_action('template_redirect', [$this, 'track_404_errors']);
+        $this->safe_call(fn() => add_action('template_redirect', [$this, 'track_404_errors']), '404_tracking_hook');
+    }
+
+    /**
+     * Safely initialize a service
+     *
+     * @param callable $initializer Function to initialize the service
+     * @param string $service_name Service name for logging
+     * @return mixed Initialized service or null on error
+     */
+    private function safe_init(callable $initializer, string $service_name)
+    {
+        try {
+            return $initializer();
+        } catch (\Throwable $e) {
+            HT_Error_Handler::log_exception($e, "init_service_{$service_name}");
+            return null;
+        }
+    }
+
+    /**
+     * Safely execute a function
+     *
+     * @param callable $callback Function to execute
+     * @param string $context Context for logging
+     * @return void
+     */
+    private function safe_call(callable $callback, string $context): void
+    {
+        try {
+            $callback();
+        } catch (\Throwable $e) {
+            HT_Error_Handler::log_exception($e, "safe_call_{$context}");
+        }
     }
 
     /**
@@ -530,31 +610,38 @@ final class HT_Core
      */
     private function register_hooks(): void
     {
-        // اتصال به REST API وردپرس
-        add_action('rest_api_init', [$this->eyes, 'register_endpoints']);
-        add_action('rest_api_init', [$this->ai_controller, 'register_endpoints']);
-        add_action('rest_api_init', [$this->atlas_api, 'register_endpoints']);
-        add_action('rest_api_init', [$this->lead_api, 'register_endpoints']); // PR11
-        add_action('rest_api_init', [$this->postpurchase_api, 'register_endpoints']); // PR12
-        add_action('rest_api_init', [$this->observer_api, 'register_endpoints']); // PR13
-        add_action('rest_api_init', [$this->chat_capabilities, 'register_endpoints']); // PR15
-        add_action('rest_api_init', [$this->security_alerts, 'register_endpoints']); // PR15
-        add_action('rest_api_init', [$this->access_control, 'register_endpoints']); // PR16
-        add_action('rest_api_init', [$this->resilience_api, 'register_endpoints']); // PR18
+        // Wrap hook registrations to prevent cascade failures
+        $this->safe_call(function() {
+            // اتصال به REST API وردپرس
+            if ($this->eyes) add_action('rest_api_init', [$this->eyes, 'register_endpoints']);
+            if ($this->ai_controller) add_action('rest_api_init', [$this->ai_controller, 'register_endpoints']);
+            if ($this->atlas_api) add_action('rest_api_init', [$this->atlas_api, 'register_endpoints']);
+            if ($this->lead_api) add_action('rest_api_init', [$this->lead_api, 'register_endpoints']); // PR11
+            if ($this->postpurchase_api) add_action('rest_api_init', [$this->postpurchase_api, 'register_endpoints']); // PR12
+            if ($this->observer_api) add_action('rest_api_init', [$this->observer_api, 'register_endpoints']); // PR13
+            if ($this->chat_capabilities) add_action('rest_api_init', [$this->chat_capabilities, 'register_endpoints']); // PR15
+            if ($this->security_alerts) add_action('rest_api_init', [$this->security_alerts, 'register_endpoints']); // PR15
+            if ($this->access_control) add_action('rest_api_init', [$this->access_control, 'register_endpoints']); // PR16
+            if ($this->resilience_api) add_action('rest_api_init', [$this->resilience_api, 'register_endpoints']); // PR18
+        }, 'rest_api_hooks');
         
         // Initialize Vault REST API (PR7)
-        HT_Vault_REST_API::init();
+        $this->safe_call(fn() => HT_Vault_REST_API::init(), 'vault_rest_init');
 
         // تزریق اسکریپتهای ردیاب به فرانتئند (سازگار با Divi)
-        add_action('wp_enqueue_scripts', [$this->eyes, 'enqueue_tracker']);
-        add_action('wp_enqueue_scripts', [$this, 'enqueue_ui_executor']);
-        add_action('wp_enqueue_scripts', [$this, 'enqueue_vault_scripts']);
+        $this->safe_call(function() {
+            if ($this->eyes) add_action('wp_enqueue_scripts', [$this->eyes, 'enqueue_tracker']);
+            add_action('wp_enqueue_scripts', [$this, 'enqueue_ui_executor']);
+            add_action('wp_enqueue_scripts', [$this, 'enqueue_vault_scripts']);
+        }, 'frontend_scripts');
 
         // Load admin assets
-        add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
+        $this->safe_call(fn() => add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']), 'admin_scripts');
 
         // Initialize persona tracking
-        add_action('init', [$this->memory, 'init_session']);
+        $this->safe_call(function() {
+            if ($this->memory) add_action('init', [$this->memory, 'init_session']);
+        }, 'persona_tracking');
     }
 
     /**
