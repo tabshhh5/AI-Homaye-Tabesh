@@ -60,7 +60,33 @@ class HT_Gemini_Client
         }
 
         try {
+            // PR16: Apply LLM Shield - Input Firewall
+            if (class_exists('\HomayeTabesh\HT_LLM_Shield_Layer')) {
+                $shield = new HT_LLM_Shield_Layer();
+                
+                // Skip shield for trusted users (administrators)
+                if (!$shield->is_trusted_user()) {
+                    $user_identifier = $this->get_user_identifier();
+                    $filter_result = $shield->filter_input($prompt, $user_identifier);
+                    
+                    if (!$filter_result['allowed']) {
+                        return $this->get_fallback_response(
+                            'متاسفم، این درخواست مجاز نیست. لطفاً سوال دیگری بپرسید.'
+                        );
+                    }
+                    
+                    $prompt = $filter_result['prompt'];
+                }
+            }
+
             $system_instruction = $this->build_system_instruction($context);
+            
+            // PR16: Enhance system instruction with safety rules
+            if (class_exists('\HomayeTabesh\HT_LLM_Shield_Layer')) {
+                $shield = new HT_LLM_Shield_Layer();
+                $system_instruction = $shield->enhance_system_instruction($system_instruction);
+            }
+            
             $generation_config = $this->build_generation_config($schema);
 
             $payload = [
@@ -80,12 +106,46 @@ class HT_Gemini_Client
             ];
 
             $response = $this->make_request($payload);
+            $parsed_response = $this->parse_response($response);
+            
+            // PR16: Apply LLM Shield - Output Firewall
+            if (class_exists('\HomayeTabesh\HT_LLM_Shield_Layer')) {
+                $shield = new HT_LLM_Shield_Layer();
+                
+                if (!$shield->is_trusted_user()) {
+                    $user_identifier = $this->get_user_identifier();
+                    $response_text = $parsed_response['response'] ?? '';
+                    
+                    $filter_result = $shield->filter_output($response_text, $user_identifier);
+                    
+                    if (!$filter_result['allowed']) {
+                        $parsed_response['response'] = $filter_result['response'];
+                    } else {
+                        $parsed_response['response'] = $filter_result['response'];
+                    }
+                }
+            }
 
-            return $this->parse_response($response);
+            return $parsed_response;
         } catch (\Exception $e) {
             error_log('Homaye Tabesh - Gemini API Error: ' . $e->getMessage());
             return $this->get_fallback_response($e->getMessage());
         }
+    }
+    
+    /**
+     * Get user identifier for tracking
+     *
+     * @return string User identifier
+     */
+    private function get_user_identifier(): string
+    {
+        if (class_exists('\HomayeTabesh\HT_User_Behavior_Tracker')) {
+            $tracker = new HT_User_Behavior_Tracker();
+            return $tracker->get_user_identifier();
+        }
+        
+        return is_user_logged_in() ? 'user_' . get_current_user_id() : 'guest';
     }
 
     /**

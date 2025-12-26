@@ -207,6 +207,26 @@ final class HT_Core
     public ?HT_Admin_Security_Alerts $security_alerts = null;
 
     /**
+     * WAF Core Engine (PR16 - Web Application Firewall)
+     */
+    public ?HT_WAF_Core_Engine $waf_engine = null;
+
+    /**
+     * LLM Shield Layer (PR16 - Prompt & Output Firewall)
+     */
+    public ?HT_LLM_Shield_Layer $llm_shield = null;
+
+    /**
+     * User Behavior Tracker (PR16 - Security Scoring)
+     */
+    public ?HT_User_Behavior_Tracker $behavior_tracker = null;
+
+    /**
+     * Access Control Manager (PR16 - Team Access Management)
+     */
+    public ?HT_Access_Control_Manager $access_control = null;
+
+    /**
      * Get singleton instance
      *
      * @return self
@@ -293,6 +313,12 @@ final class HT_Core
         $this->chat_capabilities = new HT_Dynamic_Chat_Capabilities();
         $this->security_alerts = new HT_Admin_Security_Alerts();
 
+        // Initialize PR16 - Homa Guardian (Security System)
+        $this->waf_engine = new HT_WAF_Core_Engine();
+        $this->llm_shield = new HT_LLM_Shield_Layer();
+        $this->behavior_tracker = new HT_User_Behavior_Tracker();
+        $this->access_control = new HT_Access_Control_Manager();
+
         // Initialize default knowledge base on first load
         add_action('init', [$this->knowledge, 'init_default_knowledge_base']);
         
@@ -348,6 +374,27 @@ final class HT_Core
             $security_alerts = new HT_Admin_Security_Alerts();
             $security_alerts->cleanup_old_logs(90); // Clean logs older than 90 days
         });
+
+        // Schedule WAF blacklist cleanup (PR16)
+        if (!wp_next_scheduled('homa_cleanup_waf_blacklist')) {
+            wp_schedule_event(time(), 'daily', 'homa_cleanup_waf_blacklist');
+        }
+        add_action('homa_cleanup_waf_blacklist', function() {
+            $waf = new HT_WAF_Core_Engine();
+            $waf->cleanup_expired_blocks();
+        });
+
+        // Schedule behavior tracking cleanup (PR16)
+        if (!wp_next_scheduled('homa_cleanup_behavior_logs')) {
+            wp_schedule_event(time(), 'weekly', 'homa_cleanup_behavior_logs');
+        }
+        add_action('homa_cleanup_behavior_logs', function() {
+            $behavior_tracker = new HT_User_Behavior_Tracker();
+            $behavior_tracker->cleanup_old_records(90); // Clean records older than 90 days
+        });
+
+        // Hook 404 tracking for behavior analysis (PR16)
+        add_action('template_redirect', [$this, 'track_404_errors']);
     }
 
     /**
@@ -366,6 +413,7 @@ final class HT_Core
         add_action('rest_api_init', [$this->observer_api, 'register_endpoints']); // PR13
         add_action('rest_api_init', [$this->chat_capabilities, 'register_endpoints']); // PR15
         add_action('rest_api_init', [$this->security_alerts, 'register_endpoints']); // PR15
+        add_action('rest_api_init', [$this->access_control, 'register_endpoints']); // PR16
         
         // Initialize Vault REST API (PR7)
         HT_Vault_REST_API::init();
@@ -455,6 +503,18 @@ final class HT_Core
             'nonce' => wp_create_nonce('wp_rest'),
             'homeUrl' => home_url()
         ]);
+    }
+
+    /**
+     * Track 404 errors for security analysis (PR16)
+     *
+     * @return void
+     */
+    public function track_404_errors(): void
+    {
+        if (is_404() && $this->behavior_tracker) {
+            $this->behavior_tracker->track_404_error();
+        }
     }
 
     /**
