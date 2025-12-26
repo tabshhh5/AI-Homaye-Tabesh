@@ -135,7 +135,7 @@ final class HT_Core
             $this->admin = new HT_Admin();
         }
 
-        // Initialize Atlas API
+        // Initialize Atlas API (autoloaded via PSR-4 from includes/HT_Atlas_API.php)
         $this->atlas_api = new HT_Atlas_API();
 
         // Initialize default knowledge base on first load

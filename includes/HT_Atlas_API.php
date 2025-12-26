@@ -104,7 +104,9 @@ class HT_Atlas_API
      */
     public function check_administrator_permission(): bool
     {
-        return current_user_can('administrator');
+        // Check if current user has administrator role
+        $user = wp_get_current_user();
+        return in_array('administrator', (array) $user->roles, true);
     }
 
     /**

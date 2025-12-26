@@ -389,10 +389,13 @@ class HT_Admin
         );
 
         // Localize script with API endpoints
+        $user = wp_get_current_user();
+        $is_admin = in_array('administrator', (array) $user->roles, true);
+        
         wp_localize_script('atlas-dashboard', 'atlasConfig', [
             'apiUrl' => rest_url('homaye/v1/atlas'),
             'nonce' => wp_create_nonce('wp_rest'),
-            'userRole' => current_user_can('administrator') ? 'administrator' : 'manager',
+            'userRole' => $is_admin ? 'administrator' : 'manager',
         ]);
 
         ?>
