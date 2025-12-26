@@ -1,0 +1,372 @@
+/**
+ * Homa Visual Effects CSS
+ * Advanced visual guidance styles with animations
+ * 
+ * @package HomayeTabesh
+ * @since PR10
+ */
+
+/* ============================================
+   Glow & Highlight Effects
+   ============================================ */
+
+.homa-glow-effect {
+    position: relative;
+    z-index: 9999 !important;
+    animation: homa-glow-pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.3),
+                0 0 20px rgba(74, 144, 226, 0.6),
+                0 0 40px rgba(74, 144, 226, 0.4) !important;
+    border-radius: 4px !important;
+    transition: all 0.3s ease;
+}
+
+.homa-highlight {
+    position: relative;
+    z-index: 9998 !important;
+    outline: 3px solid #4a90e2 !important;
+    outline-offset: 4px;
+    background-color: rgba(74, 144, 226, 0.05) !important;
+    transition: all 0.3s ease;
+}
+
+@keyframes homa-glow-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.3),
+                    0 0 20px rgba(74, 144, 226, 0.6),
+                    0 0 40px rgba(74, 144, 226, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(74, 144, 226, 0.4),
+                    0 0 30px rgba(74, 144, 226, 0.8),
+                    0 0 60px rgba(74, 144, 226, 0.6);
+    }
+}
+
+/* ============================================
+   Pulse Effect
+   ============================================ */
+
+.homa-pulse-effect {
+    position: relative;
+    animation: homa-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes homa-pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+/* Pulse ring effect */
+.homa-pulse-effect::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    border: 2px solid #4a90e2;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: homa-pulse-ring 2s ease-out infinite;
+    pointer-events: none;
+}
+
+@keyframes homa-pulse-ring {
+    0% {
+        width: 100%;
+        height: 100%;
+        opacity: 1;
+    }
+    100% {
+        width: 150%;
+        height: 150%;
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   Tooltip Styles
+   ============================================ */
+
+.homa-visual-tooltip {
+    position: absolute;
+    z-index: 999999;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    font-family: 'Vazir', 'Tahoma', sans-serif;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2);
+    max-width: 320px;
+    min-width: 200px;
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    pointer-events: all;
+    direction: rtl;
+    text-align: right;
+}
+
+.homa-visual-tooltip.homa-tooltip-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+/* Tooltip arrow */
+.homa-visual-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 30px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid #764ba2;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.homa-tooltip-content {
+    position: relative;
+    padding-left: 24px;
+}
+
+.homa-tooltip-close {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 20px;
+    line-height: 1;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.homa-tooltip-close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.homa-tooltip-target {
+    position: relative;
+    z-index: 9997 !important;
+    outline: 2px dashed #667eea !important;
+    outline-offset: 2px;
+}
+
+/* ============================================
+   Attention Grabber (for CTAs)
+   ============================================ */
+
+.homa-attention {
+    position: relative;
+    animation: homa-attention-shake 0.5s ease-in-out;
+}
+
+@keyframes homa-attention-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* Shimmer effect for important elements */
+.homa-shimmer {
+    position: relative;
+    overflow: hidden;
+}
+
+.homa-shimmer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        transparent 100%
+    );
+    animation: homa-shimmer-slide 2s infinite;
+    pointer-events: none;
+}
+
+@keyframes homa-shimmer-slide {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* ============================================
+   Focus Ring (Accessibility)
+   ============================================ */
+
+.homa-focus-ring {
+    outline: 3px solid #4a90e2;
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+/* ============================================
+   Mobile Optimizations
+   ============================================ */
+
+@media (max-width: 768px) {
+    .homa-visual-tooltip {
+        max-width: 280px;
+        font-size: 13px;
+        padding: 12px 16px;
+    }
+
+    .homa-glow-effect {
+        box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3),
+                    0 0 15px rgba(74, 144, 226, 0.5) !important;
+    }
+
+    /* Reduce animation intensity on mobile */
+    .homa-pulse-effect {
+        animation-duration: 2s;
+    }
+
+    @keyframes homa-glow-pulse {
+        0%, 100% {
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3),
+                        0 0 15px rgba(74, 144, 226, 0.5);
+        }
+        50% {
+            box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.4),
+                        0 0 20px rgba(74, 144, 226, 0.7);
+        }
+    }
+}
+
+/* ============================================
+   RTL Support
+   ============================================ */
+
+[dir="rtl"] .homa-visual-tooltip {
+    direction: rtl;
+    text-align: right;
+}
+
+[dir="rtl"] .homa-visual-tooltip::after {
+    left: auto;
+    right: 30px;
+}
+
+[dir="rtl"] .homa-tooltip-close {
+    left: auto;
+    right: 8px;
+}
+
+/* ============================================
+   High Contrast Mode
+   ============================================ */
+
+@media (prefers-contrast: high) {
+    .homa-glow-effect {
+        box-shadow: 0 0 0 4px #4a90e2,
+                    0 0 20px #4a90e2 !important;
+    }
+
+    .homa-highlight {
+        outline-color: #000 !important;
+        background-color: rgba(255, 255, 0, 0.2) !important;
+    }
+
+    .homa-visual-tooltip {
+        background: #000;
+        border: 2px solid #4a90e2;
+    }
+}
+
+/* ============================================
+   Reduced Motion Support
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .homa-glow-effect,
+    .homa-pulse-effect,
+    .homa-attention,
+    .homa-shimmer::before {
+        animation: none !important;
+    }
+
+    .homa-visual-tooltip {
+        transition: opacity 0.1s ease !important;
+        transform: none !important;
+    }
+
+    .homa-visual-tooltip.homa-tooltip-visible {
+        transform: none !important;
+    }
+}
+
+/* ============================================
+   Z-Index Management
+   ============================================ */
+
+/* Ensure visual effects appear above most content but below modals */
+.homa-glow-effect,
+.homa-highlight {
+    z-index: 9998 !important;
+}
+
+.homa-tooltip-target {
+    z-index: 9997 !important;
+}
+
+.homa-visual-tooltip {
+    z-index: 999999 !important;
+}
+
+/* Handle conflicts with common WordPress/Divi elements */
+.et-db #et-boc .homa-glow-effect,
+.et-db #et-boc .homa-highlight {
+    z-index: 9998 !important;
+}
+
+/* Ensure tooltips appear above Divi builder elements */
+.et-fb-root-ancestor .homa-visual-tooltip {
+    z-index: 999999 !important;
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+
+@media print {
+    .homa-glow-effect,
+    .homa-highlight,
+    .homa-pulse-effect,
+    .homa-visual-tooltip {
+        animation: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+        background: transparent !important;
+    }
+
+    .homa-visual-tooltip {
+        display: none !important;
+    }
+}

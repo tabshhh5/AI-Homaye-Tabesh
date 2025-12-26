@@ -4,6 +4,7 @@ import { useHomaEvent, useHomaEmit, useSiteInputChanges } from '../homaReactBrid
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 import SmartChips from './SmartChips';
+import ExploreWidget from './ExploreWidget';
 
 /**
  * HomaSidebar Component
@@ -261,6 +262,9 @@ const HomaSidebar = () => {
             <div className="homa-sidebar-content">
                 <MessageList messages={messages} />
                 <div ref={messagesEndRef} />
+                
+                {/* Explore Widget - Shows when chat is empty or minimal */}
+                {messages.length <= 2 && <ExploreWidget />}
             </div>
 
             <SmartChips 
