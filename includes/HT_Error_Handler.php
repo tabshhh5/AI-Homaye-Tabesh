@@ -20,22 +20,30 @@ namespace HomayeTabesh;
 class HT_Error_Handler
 {
     /**
-     * Circuit Breaker flag - prevents recursion during error handling
-     * This is a critical safety mechanism to prevent stack overflow
-     * MUST be checked as the FIRST operation in any handler method
+     * Recursion depth counter - tracks nesting level of error handling calls
+     * This is a multi-layered safety mechanism to prevent stack overflow
      * 
-     * When recursion is detected (flag is already true), the method
-     * performs a silent return to break the recursive chain. This prevents
-     * infinite loops that could crash the entire WordPress installation.
+     * Unlike a simple boolean flag, this counter allows us to:
+     * 1. Detect ANY level of nesting, not just immediate recursion
+     * 2. Set a maximum depth threshold before aborting
+     * 3. Track and log recursion patterns for debugging
      * 
-     * Example scenario that triggers protection:
-     * 1. log_error() is called and sets $is_processing = true
-     * 2. During logging, an error occurs that triggers error handler
-     * 3. Handler tries to call log_error() again
-     * 4. Circuit breaker detects $is_processing = true and returns immediately
-     * 5. Original log_error() completes and releases the flag
+     * The counter is incremented at method entry and decremented at exit.
+     * If depth exceeds MAX_RECURSION_DEPTH, all logging is immediately aborted.
      */
-    private static bool $is_processing = false;
+    private static int $recursion_depth = 0;
+    
+    /**
+     * Maximum allowed recursion depth
+     * If error logging calls exceed this depth, emergency abort is triggered
+     */
+    private const MAX_RECURSION_DEPTH = 2;
+    
+    /**
+     * Emergency flag - set when critical failure is detected
+     * When true, ALL error handling is disabled to prevent cascade failures
+     */
+    private static bool $emergency_mode = false;
 
     /**
      * Log an error message to WordPress debug.log
@@ -47,30 +55,43 @@ class HT_Error_Handler
      */
     public static function log_error(string $message, string $context = 'general', $data = null): void
     {
-        // CIRCUIT BREAKER: Check processing flag FIRST before any other operations
-        if (self::$is_processing) {
+        // EMERGENCY ABORT: If emergency mode is active, do nothing
+        if (self::$emergency_mode) {
+            return;
+        }
+        
+        // RECURSION DEPTH CHECK: Increment depth counter
+        self::$recursion_depth++;
+        
+        // If depth exceeds maximum, trigger emergency mode and abort
+        if (self::$recursion_depth > self::MAX_RECURSION_DEPTH) {
+            self::$emergency_mode = true;
+            self::$recursion_depth = 0;
+            
+            // Use absolute minimal emergency logging - no function calls, no formatting
+            @error_log('[Homaye Tabesh - EMERGENCY] Recursion depth exceeded in error handler - aborting all error logging');
             return;
         }
 
-        // Set circuit breaker immediately to prevent recursion
-        self::$is_processing = true;
-
         try {
-            $log_message = sprintf(
-                '[Homaye Tabesh - %s] %s',
-                $context,
-                $message
-            );
+            // Build log message using only safe operations
+            $log_message = '[Homaye Tabesh - ' . $context . '] ' . $message;
 
-            if ($data !== null) {
-                $log_message .= ' | Data: ' . self::format_data($data);
+            // Only add data if provided and depth is 1 (avoid complex operations in nested calls)
+            if ($data !== null && self::$recursion_depth === 1) {
+                $log_message .= ' | Data: ' . self::safe_format_data($data);
             }
 
-            // Use pure PHP error_log to avoid WordPress hooks that might recurse
-            error_log($log_message);
+            // Use pure PHP error_log - no WordPress functions, no custom handlers
+            @error_log($log_message);
+        } catch (\Throwable $e) {
+            // If ANY error occurs, enter emergency mode immediately
+            self::$emergency_mode = true;
+            // Last-resort logging with no dependencies
+            @error_log('[Homaye Tabesh - CRITICAL] Error handler itself failed');
         } finally {
-            // Always release circuit breaker
-            self::$is_processing = false;
+            // Always decrement depth counter
+            self::$recursion_depth--;
         }
     }
 
@@ -83,52 +104,97 @@ class HT_Error_Handler
      */
     public static function log_exception(\Throwable $exception, string $context = 'general'): void
     {
-        // CIRCUIT BREAKER: Check processing flag FIRST
-        if (self::$is_processing) {
+        // EMERGENCY ABORT: If emergency mode is active, do nothing
+        if (self::$emergency_mode) {
+            return;
+        }
+        
+        // RECURSION DEPTH CHECK: Increment depth counter
+        self::$recursion_depth++;
+        
+        // If depth exceeds maximum, trigger emergency mode and abort
+        if (self::$recursion_depth > self::MAX_RECURSION_DEPTH) {
+            self::$emergency_mode = true;
+            self::$recursion_depth = 0;
+            
+            // Use absolute minimal emergency logging
+            @error_log('[Homaye Tabesh - EMERGENCY] Recursion depth exceeded in exception handler');
             return;
         }
 
-        // Set circuit breaker immediately
-        self::$is_processing = true;
-
         try {
-            $message = sprintf(
-                'Exception in %s: %s in %s:%d',
-                $context,
-                $exception->getMessage(),
-                $exception->getFile(),
-                $exception->getLine()
-            );
+            // Build message using only safe string operations - no sprintf, no complex calls
+            $message = '[Homaye Tabesh - ' . $context . '] Exception: ' . $exception->getMessage() 
+                     . ' in ' . $exception->getFile() . ':' . $exception->getLine();
 
-            // Add trace to message directly - don't call log_error to avoid complexity
-            $log_message = $message . ' | Trace: ' . $exception->getTraceAsString();
+            // Only add trace if at depth 1 to avoid expensive operations in nested calls
+            if (self::$recursion_depth === 1) {
+                $message .= ' | Trace: ' . $exception->getTraceAsString();
+            }
             
-            // Use pure PHP error_log
-            error_log('[Homaye Tabesh - ' . $context . '] ' . $log_message);
+            // Use pure PHP error_log with error suppression
+            @error_log($message);
+        } catch (\Throwable $e) {
+            // If ANY error occurs, enter emergency mode
+            self::$emergency_mode = true;
+            @error_log('[Homaye Tabesh - CRITICAL] Exception handler itself failed');
         } finally {
-            // Always release circuit breaker
-            self::$is_processing = false;
+            // Always decrement depth counter
+            self::$recursion_depth--;
         }
     }
 
     /**
-     * Format data for logging
+     * Format data for logging (simplified and safe version)
      *
      * @param mixed $data Data to format
      * @return string Formatted data string
      */
-    private static function format_data($data): string
+    private static function safe_format_data($data): string
     {
-        if (is_array($data) || is_object($data)) {
-            $encoded = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            return $encoded !== false ? $encoded : 'JSON_ENCODE_ERROR';
+        // Emergency mode - return minimal string
+        if (self::$emergency_mode) {
+            return '[emergency-mode]';
         }
-
-        return (string) $data;
+        
+        try {
+            // Use simple type checking and formatting
+            if (is_string($data)) {
+                return $data;
+            }
+            
+            if (is_numeric($data)) {
+                return (string) $data;
+            }
+            
+            if (is_bool($data)) {
+                return $data ? 'true' : 'false';
+            }
+            
+            if (is_null($data)) {
+                return 'null';
+            }
+            
+            // For arrays and objects, use json_encode with error suppression
+            if (is_array($data) || is_object($data)) {
+                $encoded = @json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR);
+                return $encoded !== false ? $encoded : '[json-encode-failed]';
+            }
+            
+            // Fallback for unknown types
+            return '[unknown-type]';
+        } catch (\Throwable $e) {
+            // If formatting fails, enter emergency mode
+            self::$emergency_mode = true;
+            return '[format-failed]';
+        }
     }
 
     /**
      * Display admin notice for critical errors
+     * 
+     * NOTE: This method does NOT log errors to prevent recursion
+     * It only schedules an admin notice to be displayed
      *
      * @param string $message Error message to display
      * @param string $type Notice type (error, warning, info)
@@ -136,18 +202,28 @@ class HT_Error_Handler
      */
     public static function admin_notice(string $message, string $type = 'error'): void
     {
-        add_action('admin_notices', function () use ($message, $type) {
-            printf(
-                '<div class="notice notice-%s"><p><strong>%s:</strong> %s</p></div>',
-                esc_attr($type),
-                esc_html__('همای تابش', 'homaye-tabesh'),
-                esc_html($message)
-            );
-        });
+        // Never call error logging from admin_notice to prevent recursion
+        // This is a display-only function
+        
+        try {
+            add_action('admin_notices', function () use ($message, $type) {
+                // Use simple string concatenation instead of printf to avoid errors
+                echo '<div class="notice notice-' . esc_attr($type) . '"><p>'
+                   . '<strong>' . esc_html__('همای تابش', 'homaye-tabesh') . ':</strong> '
+                   . esc_html($message)
+                   . '</p></div>';
+            });
+        } catch (\Throwable $e) {
+            // Silently fail - don't log here to prevent recursion
+            // This is a display-only function, failure is not critical
+        }
     }
 
     /**
      * Safe wrapper for executing code with error handling
+     * 
+     * NOTE: Errors from the callback are logged, which could trigger recursion
+     * if the callback itself involves error logging. Use with caution.
      *
      * @param callable $callback Function to execute
      * @param string $context Context for error logging
@@ -156,12 +232,50 @@ class HT_Error_Handler
      */
     public static function safe_execute(callable $callback, string $context = 'general', $default = null)
     {
+        // Don't execute if in emergency mode
+        if (self::$emergency_mode) {
+            return $default;
+        }
+        
         try {
             return $callback();
         } catch (\Throwable $e) {
+            // This call is safe because log_exception has its own recursion protection
             self::log_exception($e, $context);
             return $default;
         }
+    }
+    
+    /**
+     * Check if error handler is in emergency mode
+     * 
+     * @return bool True if emergency mode is active
+     */
+    public static function is_emergency_mode(): bool
+    {
+        return self::$emergency_mode;
+    }
+    
+    /**
+     * Reset emergency mode
+     * 
+     * WARNING: This method should ONLY be used in these scenarios:
+     * 1. Unit testing - to reset state between tests
+     * 2. Manual recovery - by system administrator after investigating root cause
+     * 
+     * DO NOT call this in production code as it could mask recurring issues.
+     * Emergency mode is automatically reset on the next request.
+     * 
+     * @internal This method is for testing and manual recovery only
+     * @return void
+     */
+    public static function reset_emergency_mode(): void
+    {
+        // Log the reset for audit trail
+        @error_log('[Homaye Tabesh - WARNING] Emergency mode manually reset - investigate root cause');
+        
+        self::$emergency_mode = false;
+        self::$recursion_depth = 0;
     }
 
     /**

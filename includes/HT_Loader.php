@@ -105,19 +105,28 @@ class HT_Loader
     }
 
     /**
-     * Emergency logging that doesn't rely on WordPress
+     * Emergency logging that doesn't rely on WordPress or error handlers
+     * Uses pure PHP file operations with error suppression
      *
      * @param string $message
      * @return void
      */
     private function emergency_log(string $message): void
     {
-        $log_file = WP_CONTENT_DIR . '/homa-emergency-log.txt';
-        $timestamp = date('Y-m-d H:i:s');
-        $log_entry = "[{$timestamp}] {$message}" . PHP_EOL;
-        
-        // Use file_put_contents with FILE_APPEND flag
-        @file_put_contents($log_file, $log_entry, FILE_APPEND | LOCK_EX);
+        try {
+            $log_file = defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/homa-emergency-log.txt' : sys_get_temp_dir() . '/homa-emergency-log.txt';
+            $timestamp = date('Y-m-d H:i:s');
+            $log_entry = "[{$timestamp}] {$message}" . PHP_EOL;
+            
+            // Use file_put_contents with FILE_APPEND flag and error suppression
+            @file_put_contents($log_file, $log_entry, FILE_APPEND | LOCK_EX);
+            
+            // Also use pure error_log as backup - never call HT_Error_Handler
+            @error_log('[Homaye Tabesh - Loader] ' . $message);
+        } catch (\Throwable $e) {
+            // Absolute last resort - silently fail to prevent cascade
+            // Any error here would be catastrophic, so we just abort
+        }
     }
 
     /**

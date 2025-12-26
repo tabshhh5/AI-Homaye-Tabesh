@@ -46,7 +46,7 @@ try {
         require_once HT_PLUGIN_DIR . 'includes/autoload.php';
     }
 } catch (\Throwable $e) {
-    error_log('[Homaye Tabesh - Autoload Error] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    @error_log('[Homaye Tabesh - Autoload Error] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     add_action('admin_notices', function () use ($e) {
         echo '<div class="notice notice-error"><p>';
         echo '<strong>' . esc_html__('خطای همای تابش:', 'homaye-tabesh') . '</strong> ';
@@ -77,9 +77,8 @@ if (!class_exists('HomayeTabesh\HT_Core')) {
 }
 
 // Initialize the plugin with Boot Shield protection
-// Priority -9999 ensures early loading and proper error handler availability
-// Note: This extremely high priority is intentional and required for critical stability
-// to ensure error handlers are ready before other plugins that might trigger errors
+// Use normal priority (10) to ensure WordPress is fully loaded
+// This prevents issues with WordPress functions being unavailable during early boot
 add_action('plugins_loaded', function () {
     // Static flag to prevent re-entry during emergency logging
     static $boot_in_progress = false;
@@ -100,8 +99,9 @@ add_action('plugins_loaded', function () {
             $message = '[' . date('Y-m-d H:i:s') . '] WARNING: WooCommerce not active - some features may be limited' . PHP_EOL;
             @file_put_contents($log_file, $message, FILE_APPEND | LOCK_EX);
             
-            // Also use error_log as backup
-            error_log('[Homaye Tabesh - init] WARNING: WooCommerce not active - some features may be limited');
+            // Also use error_log as backup - but NEVER call HT_Error_Handler here
+            // to avoid potential recursion during boot
+            @error_log('[Homaye Tabesh - init] WARNING: WooCommerce not active - some features may be limited');
         }
 
         // Use safe loader instead of direct instantiation
@@ -119,11 +119,11 @@ add_action('plugins_loaded', function () {
         $message = '[' . date('Y-m-d H:i:s') . '] CRITICAL BOOT ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() . PHP_EOL;
         @file_put_contents($log_file, $message, FILE_APPEND | LOCK_EX);
         
-        // Use pure error_log first
-        error_log('[Homaye Tabesh - CRITICAL] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+        // Use pure error_log first - NEVER call HT_Error_Handler during boot failure
+        @error_log('[Homaye Tabesh - CRITICAL] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
         
-        // Try to log using HT_Error_Handler if available (has its own circuit breaker)
-        if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
+        // Only try to use HT_Error_Handler if class is available AND emergency mode is not active
+        if (class_exists('\HomayeTabesh\HT_Error_Handler') && !\HomayeTabesh\HT_Error_Handler::is_emergency_mode()) {
             \HomayeTabesh\HT_Error_Handler::log_exception($e, 'plugin_init');
             \HomayeTabesh\HT_Error_Handler::admin_notice(
                 sprintf(
@@ -138,7 +138,7 @@ add_action('plugins_loaded', function () {
     } finally {
         $boot_in_progress = false;
     }
-}, -9999); // Very high priority to ensure early loading
+}, 10); // Normal priority to ensure WordPress is ready
 
 // Load plugin text domain for translations
 add_action('init', function () {
@@ -154,7 +154,7 @@ register_activation_hook(__FILE__, function () {
     try {
         if (!class_exists('HomayeTabesh\HT_Activator')) {
             // Use native error_log as HT_Error_Handler may not be available yet
-            error_log('[Homaye Tabesh - activation] HT_Activator class not found during activation');
+            @error_log('[Homaye Tabesh - activation] HT_Activator class not found during activation');
             wp_die(
                 esc_html__('افزونه همای تابش به درستی نصب نشده است. لطفاً از نسخه Release استفاده کنید یا دستورات نصب را دنبال کنید.', 'homaye-tabesh'),
                 esc_html__('خطای نصب افزونه', 'homaye-tabesh'),
@@ -167,7 +167,7 @@ register_activation_hook(__FILE__, function () {
         if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
             \HomayeTabesh\HT_Error_Handler::log_exception($e, 'activation');
         } else {
-            error_log('[Homaye Tabesh - activation] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            @error_log('[Homaye Tabesh - activation] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
         }
         
         wp_die(
@@ -192,7 +192,7 @@ register_deactivation_hook(__FILE__, function () {
         if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
             \HomayeTabesh\HT_Error_Handler::log_exception($e, 'deactivation');
         } else {
-            error_log('[Homaye Tabesh - deactivation] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            @error_log('[Homaye Tabesh - deactivation] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
         }
         // Don't wp_die on deactivation to allow users to deactivate broken plugins
     }

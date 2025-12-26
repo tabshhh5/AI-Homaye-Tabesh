@@ -161,14 +161,14 @@ class HT_BlackBox_Logger
 
             if ($result === false) {
                 // Use pure PHP error_log to avoid triggering HT_Error_Handler recursion
-                error_log('HT_BlackBox_Logger: Failed to insert log - ' . $wpdb->last_error);
+                @error_log('HT_BlackBox_Logger: Failed to insert log - ' . $wpdb->last_error);
                 return false;
             }
 
             return (int) $wpdb->insert_id;
         } catch (\Throwable $e) {
             // Emergency logging without HT_Error_Handler to prevent recursion
-            error_log('HT_BlackBox_Logger: Critical error in log_ai_transaction - ' . $e->getMessage());
+            @error_log('HT_BlackBox_Logger: Critical error in log_ai_transaction - ' . $e->getMessage());
             return false;
         }
     }
@@ -197,7 +197,7 @@ class HT_BlackBox_Logger
             return $this->log_ai_transaction($data);
         } catch (\Throwable $e) {
             // Emergency logging without recursion
-            error_log('HT_BlackBox_Logger: Failed to log error - ' . $e->getMessage());
+            @error_log('HT_BlackBox_Logger: Failed to log error - ' . $e->getMessage());
             return false;
         }
     }
