@@ -12,10 +12,18 @@ const SuperSettings = () => {
     const [hasChanges, setHasChanges] = useState(false);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [notification, setNotification] = useState(null);
 
     useEffect(() => {
         loadSettings();
     }, []);
+
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
     const loadSettings = async () => {
         setLoading(true);
@@ -55,12 +63,14 @@ const SuperSettings = () => {
             );
             const data = await response.json();
             if (data.success) {
-                alert('✅ تنظیمات با موفقیت ذخیره شد');
+                setNotification({ type: 'success', message: 'تنظیمات با موفقیت ذخیره شد' });
                 setHasChanges(false);
+            } else {
+                setNotification({ type: 'error', message: 'خطا در ذخیره تنظیمات' });
             }
         } catch (error) {
             console.error('Failed to save settings:', error);
-            alert('❌ خطا در ذخیره تنظیمات');
+            setNotification({ type: 'error', message: 'خطا در ذخیره تنظیمات' });
         } finally {
             setSaving(false);
         }
@@ -106,6 +116,13 @@ const SuperSettings = () => {
 
     return (
         <div className="super-settings" dir="rtl">
+            {/* Notification Banner */}
+            {notification && (
+                <div className={`notification-banner ${notification.type}`}>
+                    <span>{notification.type === 'success' ? '✅' : '❌'} {notification.message}</span>
+                </div>
+            )}
+
             {/* Save Banner */}
             {hasChanges && (
                 <div className="save-banner">
@@ -412,6 +429,42 @@ const SuperSettings = () => {
             <style jsx>{`
                 .super-settings {
                     padding: 20px;
+                }
+
+                .notification-banner {
+                    position: fixed;
+                    top: 80px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    padding: 15px 30px;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    z-index: 1000;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                    animation: slideDown 0.3s ease-out;
+                }
+
+                .notification-banner.success {
+                    background: #d4edda;
+                    border: 1px solid #c3e6cb;
+                    color: #155724;
+                }
+
+                .notification-banner.error {
+                    background: #f8d7da;
+                    border: 1px solid #f5c6cb;
+                    color: #721c24;
+                }
+
+                @keyframes slideDown {
+                    from {
+                        opacity: 0;
+                        transform: translate(-50%, -20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translate(-50%, 0);
+                    }
                 }
 
                 .save-banner {

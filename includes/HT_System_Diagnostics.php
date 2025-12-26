@@ -157,11 +157,16 @@ class HT_System_Diagnostics
 
         try {
             $pages_indexed = $wpdb->get_var(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}homaye_indexed_pages"
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->prefix}homaye_indexed_pages"
+                )
             );
             
             $plugins_monitored = $wpdb->get_var(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}homaye_monitored_plugins WHERE is_monitored = 1"
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->prefix}homaye_monitored_plugins WHERE is_monitored = %d",
+                    1
+                )
             );
 
             $health_score = 0;
@@ -384,8 +389,11 @@ class HT_System_Diagnostics
             // Fix 2: Cleanup old data
             global $wpdb;
             $deleted = $wpdb->query(
-                "DELETE FROM {$wpdb->prefix}homaye_security_events 
-                WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)"
+                $wpdb->prepare(
+                    "DELETE FROM {$wpdb->prefix}homaye_security_events 
+                    WHERE created_at < DATE_SUB(NOW(), INTERVAL %d DAY)",
+                    30
+                )
             );
             if ($deleted !== false) {
                 $fixed[] = 'داده‌های قدیمی پاکسازی شدند';

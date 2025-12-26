@@ -162,46 +162,71 @@ class HT_Console_Analytics_API
         // Token usage
         $token_usage = [
             'total' => $wpdb->get_var(
-                "SELECT SUM(tokens_used) FROM {$wpdb->prefix}homaye_ai_requests 
-                WHERE created_at >= '$date_filter'"
+                $wpdb->prepare(
+                    "SELECT SUM(tokens_used) FROM {$wpdb->prefix}homaye_ai_requests 
+                    WHERE created_at >= %s",
+                    $date_filter
+                )
             ) ?: 0,
             'by_section' => [
                 'chat' => $wpdb->get_var(
-                    "SELECT SUM(tokens_used) FROM {$wpdb->prefix}homaye_ai_requests 
-                    WHERE request_type = 'chat' AND created_at >= '$date_filter'"
+                    $wpdb->prepare(
+                        "SELECT SUM(tokens_used) FROM {$wpdb->prefix}homaye_ai_requests 
+                        WHERE request_type = %s AND created_at >= %s",
+                        'chat',
+                        $date_filter
+                    )
                 ) ?: 0,
                 'translation' => $wpdb->get_var(
-                    "SELECT SUM(tokens_used) FROM {$wpdb->prefix}homaye_ai_requests 
-                    WHERE request_type = 'translation' AND created_at >= '$date_filter'"
+                    $wpdb->prepare(
+                        "SELECT SUM(tokens_used) FROM {$wpdb->prefix}homaye_ai_requests 
+                        WHERE request_type = %s AND created_at >= %s",
+                        'translation',
+                        $date_filter
+                    )
                 ) ?: 0,
                 'index' => $wpdb->get_var(
-                    "SELECT SUM(tokens_used) FROM {$wpdb->prefix}homaye_ai_requests 
-                    WHERE request_type = 'indexing' AND created_at >= '$date_filter'"
+                    $wpdb->prepare(
+                        "SELECT SUM(tokens_used) FROM {$wpdb->prefix}homaye_ai_requests 
+                        WHERE request_type = %s AND created_at >= %s",
+                        'indexing',
+                        $date_filter
+                    )
                 ) ?: 0
             ]
         ];
 
         // Leads and conversion
         $total_leads = $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}homaye_leads 
-            WHERE created_at >= '$date_filter'"
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}homaye_leads 
+                WHERE created_at >= %s",
+                $date_filter
+            )
         ) ?: 0;
 
         $converted_leads = $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}homaye_leads 
-            WHERE status = 'converted' AND created_at >= '$date_filter'"
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}homaye_leads 
+                WHERE status = %s AND created_at >= %s",
+                'converted',
+                $date_filter
+            )
         ) ?: 0;
 
         $conversion_rate = $total_leads > 0 ? round(($converted_leads / $total_leads) * 100, 1) : 0;
 
         // Top interests
         $interests = $wpdb->get_results(
-            "SELECT topic, COUNT(*) as count 
-            FROM {$wpdb->prefix}homaye_user_interests 
-            WHERE created_at >= '$date_filter'
-            GROUP BY topic 
-            ORDER BY count DESC 
-            LIMIT 10",
+            $wpdb->prepare(
+                "SELECT topic, COUNT(*) as count 
+                FROM {$wpdb->prefix}homaye_user_interests 
+                WHERE created_at >= %s
+                GROUP BY topic 
+                ORDER BY count DESC 
+                LIMIT 10",
+                $date_filter
+            ),
             ARRAY_A
         );
 
