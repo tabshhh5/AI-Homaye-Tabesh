@@ -19,6 +19,13 @@ namespace HomayeTabesh;
 class HT_Hook_Observer_Service
 {
     /**
+     * Recursion guard - prevents infinite loops
+     * Note: This protects against same-request recursion. WordPress/PHP
+     * runs in a single-threaded per-request model, so this is sufficient.
+     */
+    private static bool $is_processing = false;
+
+    /**
      * لیست Hookهای مهم برای مانیتور
      */
     private const MONITORED_HOOKS = [
@@ -65,31 +72,42 @@ class HT_Hook_Observer_Service
      */
     public function observe_hook(...$args): void
     {
-        $hook_name = current_filter();
-        
-        // ثبت رویداد
-        $event = [
-            'hook' => $hook_name,
-            'timestamp' => current_time('mysql'),
-            'args_summary' => $this->summarize_args($args),
-        ];
-
-        // افزودن به لاگ در مموری
-        $this->event_log[] = $event;
-
-        // ذخیره رویدادهای مهم در دیتابیس
-        if ($this->is_critical_hook($hook_name)) {
-            $this->store_event($event);
+        // Prevent infinite recursion
+        if (self::$is_processing) {
+            return;
         }
 
-        // اگر hook مربوط به تغییر وضعیت سفارش است
-        if ($hook_name === 'woocommerce_order_status_changed') {
-            $this->handle_order_status_change($args);
-        }
+        self::$is_processing = true;
 
-        // اگر hook مربوط به Tabesh است
-        if (strpos($hook_name, 'tabesh_') === 0) {
-            $this->handle_tabesh_event($hook_name, $args);
+        try {
+            $hook_name = current_filter();
+            
+            // ثبت رویداد
+            $event = [
+                'hook' => $hook_name,
+                'timestamp' => current_time('mysql'),
+                'args_summary' => $this->summarize_args($args),
+            ];
+
+            // افزودن به لاگ در مموری
+            $this->event_log[] = $event;
+
+            // ذخیره رویدادهای مهم در دیتابیس
+            if ($this->is_critical_hook($hook_name)) {
+                $this->store_event($event);
+            }
+
+            // اگر hook مربوط به تغییر وضعیت سفارش است
+            if ($hook_name === 'woocommerce_order_status_changed') {
+                $this->handle_order_status_change($args);
+            }
+
+            // اگر hook مربوط به Tabesh است
+            if (strpos($hook_name, 'tabesh_') === 0) {
+                $this->handle_tabesh_event($hook_name, $args);
+            }
+        } finally {
+            self::$is_processing = false;
         }
     }
 

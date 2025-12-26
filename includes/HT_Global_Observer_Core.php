@@ -24,6 +24,11 @@ class HT_Global_Observer_Core
     private static ?self $instance = null;
 
     /**
+     * Recursion guard - prevents infinite loops
+     */
+    private static bool $is_processing = false;
+
+    /**
      * Plugin scanner instance
      */
     private HT_Plugin_Scanner $scanner;
@@ -124,25 +129,36 @@ class HT_Global_Observer_Core
      */
     public function on_option_updated(string $option, $old_value, $value): void
     {
-        // فقط اگر option مربوط به افزونه تحت نظر باشد
-        if (!$this->is_monitored_option($option)) {
+        // Prevent infinite recursion
+        if (self::$is_processing) {
             return;
         }
 
-        // فیلتر کردن داده‌های حساس
-        if ($this->is_sensitive_data($option)) {
-            return;
+        self::$is_processing = true;
+
+        try {
+            // فقط اگر option مربوط به افزونه تحت نظر باشد
+            if (!$this->is_monitored_option($option)) {
+                return;
+            }
+
+            // فیلتر کردن داده‌های حساس
+            if ($this->is_sensitive_data($option)) {
+                return;
+            }
+
+            // ثبت تغییر در لاگ
+            $this->log_change('option_updated', [
+                'option' => $option,
+                'old_value' => $this->sanitize_value($old_value),
+                'new_value' => $this->sanitize_value($value),
+            ]);
+
+            // همگام‌سازی فوری با Knowledge Base
+            $this->sync_immediately($option, $value);
+        } finally {
+            self::$is_processing = false;
         }
-
-        // ثبت تغییر در لاگ
-        $this->log_change('option_updated', [
-            'option' => $option,
-            'old_value' => $this->sanitize_value($old_value),
-            'new_value' => $this->sanitize_value($value),
-        ]);
-
-        // همگام‌سازی فوری با Knowledge Base
-        $this->sync_immediately($option, $value);
     }
 
     /**
@@ -153,22 +169,33 @@ class HT_Global_Observer_Core
      */
     public function on_plugin_activated(string $plugin_path): void
     {
-        $monitored = $this->scanner->get_monitored_plugins();
+        // Prevent infinite recursion
+        if (self::$is_processing) {
+            return;
+        }
 
-        if (in_array($plugin_path, $monitored)) {
-            $plugin_info = $this->scanner->get_plugin_info(dirname($plugin_path));
-            
-            $this->log_change('plugin_activated', [
-                'plugin' => $plugin_path,
-                'name' => $plugin_info['name'] ?? 'Unknown',
-            ]);
+        self::$is_processing = true;
 
-            // به‌روزرسانی متادیتا
-            $this->mining_engine->refresh_metadata();
+        try {
+            $monitored = $this->scanner->get_monitored_plugins();
 
-            // اضافه کردن فکت به Knowledge Base
-            $fact = "افزونه {$plugin_info['name']} فعال شد.";
-            $this->add_fact_to_kb($fact, 'plugin_activation');
+            if (in_array($plugin_path, $monitored)) {
+                $plugin_info = $this->scanner->get_plugin_info(dirname($plugin_path));
+                
+                $this->log_change('plugin_activated', [
+                    'plugin' => $plugin_path,
+                    'name' => $plugin_info['name'] ?? 'Unknown',
+                ]);
+
+                // به‌روزرسانی متادیتا
+                $this->mining_engine->refresh_metadata();
+
+                // اضافه کردن فکت به Knowledge Base
+                $fact = "افزونه {$plugin_info['name']} فعال شد.";
+                $this->add_fact_to_kb($fact, 'plugin_activation');
+            }
+        } finally {
+            self::$is_processing = false;
         }
     }
 
@@ -180,18 +207,29 @@ class HT_Global_Observer_Core
      */
     public function on_plugin_deactivated(string $plugin_path): void
     {
-        $monitored = $this->scanner->get_monitored_plugins();
+        // Prevent infinite recursion
+        if (self::$is_processing) {
+            return;
+        }
 
-        if (in_array($plugin_path, $monitored)) {
-            $plugin_info = $this->scanner->get_plugin_info(dirname($plugin_path));
-            
-            $this->log_change('plugin_deactivated', [
-                'plugin' => $plugin_path,
-                'name' => $plugin_info['name'] ?? 'Unknown',
-            ]);
+        self::$is_processing = true;
 
-            $fact = "افزونه {$plugin_info['name']} غیرفعال شد.";
-            $this->add_fact_to_kb($fact, 'plugin_deactivation');
+        try {
+            $monitored = $this->scanner->get_monitored_plugins();
+
+            if (in_array($plugin_path, $monitored)) {
+                $plugin_info = $this->scanner->get_plugin_info(dirname($plugin_path));
+                
+                $this->log_change('plugin_deactivated', [
+                    'plugin' => $plugin_path,
+                    'name' => $plugin_info['name'] ?? 'Unknown',
+                ]);
+
+                $fact = "افزونه {$plugin_info['name']} غیرفعال شد.";
+                $this->add_fact_to_kb($fact, 'plugin_deactivation');
+            }
+        } finally {
+            self::$is_processing = false;
         }
     }
 
@@ -204,28 +242,39 @@ class HT_Global_Observer_Core
      */
     public function on_plugin_upgraded($upgrader, array $options): void
     {
+        // Prevent infinite recursion
+        if (self::$is_processing) {
+            return;
+        }
+
         if ($options['type'] !== 'plugin' || !isset($options['plugins'])) {
             return;
         }
 
-        $monitored = $this->scanner->get_monitored_plugins();
+        self::$is_processing = true;
 
-        foreach ($options['plugins'] as $plugin_path) {
-            if (in_array($plugin_path, $monitored)) {
-                $plugin_info = $this->scanner->get_plugin_info(dirname($plugin_path));
-                
-                $this->log_change('plugin_upgraded', [
-                    'plugin' => $plugin_path,
-                    'name' => $plugin_info['name'] ?? 'Unknown',
-                    'version' => $plugin_info['version'] ?? 'Unknown',
-                ]);
+        try {
+            $monitored = $this->scanner->get_monitored_plugins();
 
-                // به‌روزرسانی متادیتا بعد از upgrade
-                $this->mining_engine->refresh_metadata();
+            foreach ($options['plugins'] as $plugin_path) {
+                if (in_array($plugin_path, $monitored)) {
+                    $plugin_info = $this->scanner->get_plugin_info(dirname($plugin_path));
+                    
+                    $this->log_change('plugin_upgraded', [
+                        'plugin' => $plugin_path,
+                        'name' => $plugin_info['name'] ?? 'Unknown',
+                        'version' => $plugin_info['version'] ?? 'Unknown',
+                    ]);
 
-                $fact = "افزونه {$plugin_info['name']} به نسخه {$plugin_info['version']} به‌روزرسانی شد.";
-                $this->add_fact_to_kb($fact, 'plugin_upgrade');
+                    // به‌روزرسانی متادیتا بعد از upgrade
+                    $this->mining_engine->refresh_metadata();
+
+                    $fact = "افزونه {$plugin_info['name']} به نسخه {$plugin_info['version']} به‌روزرسانی شد.";
+                    $this->add_fact_to_kb($fact, 'plugin_upgrade');
+                }
             }
+        } finally {
+            self::$is_processing = false;
         }
     }
 

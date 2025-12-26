@@ -20,6 +20,11 @@ namespace HomayeTabesh;
 class HT_Error_Handler
 {
     /**
+     * Recursion guard - prevents infinite loops in error handling
+     */
+    private static bool $is_processing = false;
+
+    /**
      * Log an error message to WordPress debug.log
      *
      * @param string $message Error message
@@ -29,18 +34,29 @@ class HT_Error_Handler
      */
     public static function log_error(string $message, string $context = 'general', $data = null): void
     {
-        $log_message = sprintf(
-            '[Homaye Tabesh - %s] %s',
-            $context,
-            $message
-        );
-
-        if ($data !== null) {
-            $log_message .= ' | Data: ' . self::format_data($data);
+        // Prevent infinite recursion in error logging
+        if (self::$is_processing) {
+            return;
         }
 
-        // Use WordPress error_log - only log once
-        error_log($log_message);
+        self::$is_processing = true;
+
+        try {
+            $log_message = sprintf(
+                '[Homaye Tabesh - %s] %s',
+                $context,
+                $message
+            );
+
+            if ($data !== null) {
+                $log_message .= ' | Data: ' . self::format_data($data);
+            }
+
+            // Use WordPress error_log - only log once
+            error_log($log_message);
+        } finally {
+            self::$is_processing = false;
+        }
     }
 
     /**
@@ -52,17 +68,31 @@ class HT_Error_Handler
      */
     public static function log_exception(\Throwable $exception, string $context = 'general'): void
     {
-        $message = sprintf(
-            'Exception in %s: %s in %s:%d',
-            $context,
-            $exception->getMessage(),
-            $exception->getFile(),
-            $exception->getLine()
-        );
+        // Prevent infinite recursion
+        if (self::$is_processing) {
+            return;
+        }
 
-        self::log_error($message, $context, [
-            'trace' => $exception->getTraceAsString()
-        ]);
+        self::$is_processing = true;
+
+        try {
+            $message = sprintf(
+                'Exception in %s: %s in %s:%d',
+                $context,
+                $exception->getMessage(),
+                $exception->getFile(),
+                $exception->getLine()
+            );
+
+            // Temporarily release lock to allow log_error to work
+            self::$is_processing = false;
+            
+            self::log_error($message, $context, [
+                'trace' => $exception->getTraceAsString()
+            ]);
+        } finally {
+            self::$is_processing = false;
+        }
     }
 
     /**

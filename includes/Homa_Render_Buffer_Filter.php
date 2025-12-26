@@ -62,13 +62,15 @@ class Homa_Render_Buffer_Filter
             $this->target_language = sanitize_text_field($_COOKIE['homa_translate_to']);
         }
 
-        // Don't translate admin pages or AJAX requests
+        // Don't translate admin pages, AJAX requests, or cron jobs
         if (is_admin() || wp_doing_ajax() || wp_doing_cron()) {
             return;
         }
 
-        // Start output buffering if translation is enabled
+        // Don't start buffering during plugin initialization
+        // Only start buffering in template_redirect hook to ensure WordPress is fully loaded
         if ($this->translation_enabled) {
+            // Hook into template_redirect for safe output buffering
             add_action('template_redirect', [$this, 'start_buffer'], 1);
             add_action('shutdown', [$this, 'end_buffer'], 999);
         }
@@ -81,7 +83,15 @@ class Homa_Render_Buffer_Filter
      */
     public function start_buffer(): void
     {
-        ob_start([$this, 'translate_buffer']);
+        // Double-check we're not in admin/ajax/cron context
+        if (is_admin() || wp_doing_ajax() || wp_doing_cron()) {
+            return;
+        }
+
+        // Only start buffering if headers haven't been sent
+        if (!headers_sent()) {
+            ob_start([$this, 'translate_buffer']);
+        }
     }
 
     /**
