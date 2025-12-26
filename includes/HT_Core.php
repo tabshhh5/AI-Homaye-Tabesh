@@ -324,17 +324,6 @@ final class HT_Core
                     $e->getMessage()
                 )
             );
-            
-            // Set a flag to prevent further initialization issues
-            add_action('admin_notices', function () use ($e) {
-                if (HT_Error_Handler::is_debug_enabled()) {
-                    echo '<div class="notice notice-error"><p>';
-                    echo '<strong>Homaye Tabesh Debug Info:</strong><br>';
-                    echo 'Error: ' . esc_html($e->getMessage()) . '<br>';
-                    echo 'File: ' . esc_html($e->getFile()) . ':' . esc_html($e->getLine());
-                    echo '</p></div>';
-                }
-            });
         }
     }
 
@@ -388,7 +377,11 @@ final class HT_Core
         $this->postpurchase_api = $this->safe_init(fn() => new HT_PostPurchase_REST_API(), 'HT_PostPurchase_REST_API');
 
         // Initialize hook observers (PR12)
-        $this->safe_call(fn() => $this->hook_observer?->init_observers(), 'hook_observer_init');
+        $this->safe_call(function() {
+            if ($this->hook_observer !== null) {
+                $this->hook_observer->init_observers();
+            }
+        }, 'hook_observer_init');
 
         // Initialize PR13 - Global Observer Core
         $this->global_observer = $this->safe_init(fn() => HT_Global_Observer_Core::instance(), 'HT_Global_Observer_Core');
@@ -535,14 +528,22 @@ final class HT_Core
         }, 'cron_feedback_cleanup');
 
         // Schedule BlackBox log cleanup (PR18)
-        $this->safe_call(fn() => $this->blackbox_logger?->schedule_cleanup(), 'blackbox_cron_schedule');
+        $this->safe_call(function() {
+            if ($this->blackbox_logger !== null) {
+                $this->blackbox_logger->schedule_cleanup();
+            }
+        }, 'blackbox_cron_schedule');
         $this->safe_call(fn() => add_action('ht_blackbox_cleanup', function() {
             $logger = new HT_BlackBox_Logger();
             $logger->clean_old_logs();
         }), 'blackbox_cron_hook');
 
         // Schedule query cache warmup (PR18)
-        $this->safe_call(fn() => $this->query_optimizer?->schedule_warmup(), 'query_optimizer_schedule');
+        $this->safe_call(function() {
+            if ($this->query_optimizer !== null) {
+                $this->query_optimizer->schedule_warmup();
+            }
+        }, 'query_optimizer_schedule');
         $this->safe_call(fn() => add_action('ht_cache_warmup', function() {
             $optimizer = new HT_Query_Optimizer();
             $optimizer->warmup_cache();
@@ -555,7 +556,11 @@ final class HT_Core
         }), 'background_jobs_hook');
 
         // Schedule auto-cleanup analysis (PR18)
-        $this->safe_call(fn() => $this->auto_cleanup?->schedule_analysis(), 'auto_cleanup_schedule');
+        $this->safe_call(function() {
+            if ($this->auto_cleanup !== null) {
+                $this->auto_cleanup->schedule_analysis();
+            }
+        }, 'auto_cleanup_schedule');
         $this->safe_call(fn() => add_action('ht_auto_cleanup_analysis', function() {
             $cleanup = new HT_Auto_Cleanup();
             $cleanup->run_analysis();

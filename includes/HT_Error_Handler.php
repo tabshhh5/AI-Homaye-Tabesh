@@ -39,12 +39,7 @@ class HT_Error_Handler
             $log_message .= ' | Data: ' . self::format_data($data);
         }
 
-        // Use WordPress error_log if WP_DEBUG_LOG is enabled
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log($log_message);
-        }
-
-        // Also log to PHP error log as backup
+        // Use WordPress error_log - only log once
         error_log($log_message);
     }
 

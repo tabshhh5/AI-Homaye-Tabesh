@@ -81,16 +81,20 @@ add_action('plugins_loaded', function () {
     try {
         \HomayeTabesh\HT_Core::instance();
     } catch (\Throwable $e) {
-        // Log the error
-        \HomayeTabesh\HT_Error_Handler::log_exception($e, 'plugin_init');
-        
-        // Display admin notice
-        \HomayeTabesh\HT_Error_Handler::admin_notice(
-            sprintf(
-                __('خطا در راه‌اندازی افزونه: %s', 'homaye-tabesh'),
-                $e->getMessage()
-            )
-        );
+        // Log the error - use native error_log as fallback if HT_Error_Handler not available
+        if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
+            \HomayeTabesh\HT_Error_Handler::log_exception($e, 'plugin_init');
+            
+            // Display admin notice
+            \HomayeTabesh\HT_Error_Handler::admin_notice(
+                sprintf(
+                    __('خطا در راه‌اندازی افزونه: %s', 'homaye-tabesh'),
+                    $e->getMessage()
+                )
+            );
+        } else {
+            error_log('[Homaye Tabesh - plugin_init] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+        }
         
         // Prevent further execution but don't crash the site
         return;
