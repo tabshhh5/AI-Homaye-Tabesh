@@ -135,7 +135,8 @@ class HT_Metadata_Mining_Engine
         // آدرس فروشگاه
         $facts['store_address'] = [
             'country' => WC()->countries->get_base_country(),
-            'city' => WC()->countries->get_base_city(),
+            'state' => WC()->countries->get_base_state(),
+            'postcode' => WC()->countries->get_base_postcode(),
         ];
 
         return $facts;
