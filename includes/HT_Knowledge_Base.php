@@ -402,30 +402,6 @@ class HT_Knowledge_Base
     }
 
     /**
-     * Initialize default knowledge base on plugin activation
-     * 
-     * @return void
-     */
-    public function init_default_knowledge_base(): void
-    {
-        // اگر قبلاً اجرا شده باشد
-        if (get_option('ht_kb_initialized', false)) {
-            return;
-        }
-
-        // ایجاد دایرکتوری knowledge-base
-        if (!is_dir($this->kb_dir)) {
-            wp_mkdir_p($this->kb_dir);
-        }
-
-        // همگام‌سازی اولیه متادیتای افزونه‌ها
-        self::auto_sync_metadata();
-
-        update_option('ht_kb_initialized', true);
-    }
-}
-
-    /**
      * Initialize default knowledge base files
      *
      * @return void
