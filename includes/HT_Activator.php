@@ -361,6 +361,26 @@ class HT_Activator
 
             dbDelta($sql);
 
+            // Create Monitored Plugins table (for plugin metadata tracking)
+            $table_name = $wpdb->prefix . 'homaye_monitored_plugins';
+
+            $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                plugin_slug varchar(255) NOT NULL,
+                plugin_name varchar(255) NOT NULL,
+                plugin_version varchar(50) DEFAULT NULL,
+                is_active tinyint(1) DEFAULT 1,
+                metadata json DEFAULT NULL,
+                last_scanned datetime DEFAULT CURRENT_TIMESTAMP,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY plugin_slug (plugin_slug),
+                KEY is_active (is_active),
+                KEY last_scanned (last_scanned)
+            ) $charset_collate;";
+
+            dbDelta($sql);
+
             // Create Authority Manager overrides table (PR17)
             if (class_exists('\HomayeTabesh\HT_Authority_Manager')) {
                 $authority_manager = new HT_Authority_Manager();
@@ -480,6 +500,7 @@ class HT_Activator
             'homaye_security_scores',
             'homaye_security_events',
             'homaye_indexed_pages',
+            'homaye_monitored_plugins',
             'homa_otp',
             'homa_translations',
         ];
