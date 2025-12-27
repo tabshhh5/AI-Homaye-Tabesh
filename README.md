@@ -13,11 +13,15 @@
 - کلاس Singleton اصلی (`HT_Core`) برای مدیریت تمام زیرسیستم‌ها
 - معماری قابل توسعه و نگهداری آسان
 
-### 2. موتور استنتاج Gemini 2.5 Flash
+### 2. موتور استنتاج هوش مصنوعی (AI Inference Engine)
+- پشتیبانی از **دو سرویس‌دهنده**:
+  - **Google Gemini Direct**: اتصال مستقیم به API گوگل جمینی
+  - **GapGPT Gateway**: دروازه OpenAI-compatible با دسترسی به مدل‌های متنوع
 - پشتیبانی از Structured JSON Outputs
 - تزریق Context برای محصولات WooCommerce
 - مکانیزم Fallback در صورت خطا
 - پشتیبانی از System Instructions سفارشی
+- **6 مدل هوشمند**: Grok 3 Mini, Gemini 2.0 Flash, Qwen3 235B, DeepSeek Chat, Claude Sonnet 4, GPT-4o Mini
 
 ### 3. سیستم Telemetry اختصاصی
 - ردیابی رفتار کاربران روی المان‌های Divi
