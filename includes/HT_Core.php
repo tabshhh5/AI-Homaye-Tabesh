@@ -642,6 +642,32 @@ final class HT_Core
                         if ($repaired !== false) {
                             update_option('homa_db_last_check', time());
                         }
+                        
+                        // Show admin notice if repairs were made
+                        $db_repairs = get_transient('homa_db_repairs_made');
+                        if ($db_repairs && is_array($db_repairs)) {
+                            HT_Error_Handler::admin_notice(
+                                sprintf(
+                                    __('سیستم خودترمیمی فعال شد. %d جدول و %d ستون بازیابی شد.', 'homaye-tabesh'),
+                                    count($db_repairs['tables'] ?? []),
+                                    count($db_repairs['columns'] ?? [])
+                                ),
+                                'success'
+                            );
+                            delete_transient('homa_db_repairs_made');
+                        }
+                    }
+                }
+                
+                // Check if API key is configured (show notice once per session)
+                if (!get_transient('homa_api_key_notice_shown')) {
+                    $api_key = get_option('ht_gemini_api_key', '');
+                    if (empty($api_key)) {
+                        HT_Error_Handler::admin_notice(
+                            __('کلید API همای تابش تنظیم نشده است. لطفاً به تنظیمات بروید و کلید API را وارد کنید.', 'homaye-tabesh'),
+                            'warning'
+                        );
+                        set_transient('homa_api_key_notice_shown', true, HOUR_IN_SECONDS);
                     }
                 }
             }, 5); // Early priority

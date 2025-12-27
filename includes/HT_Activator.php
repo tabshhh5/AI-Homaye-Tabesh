@@ -596,6 +596,12 @@ class HT_Activator
                 // Call create_tables to rebuild all tables
                 self::create_tables();
                 
+                // Store repair info for admin notice
+                set_transient('homa_db_repairs_made', [
+                    'tables' => $missing_tables,
+                    'columns' => [],
+                ], 60); // 1 minute
+                
                 return true;
             } catch (\Throwable $e) {
                 \HomayeTabesh\HT_Error_Handler::log_exception($e, 'database_self_healing');
@@ -604,7 +610,15 @@ class HT_Activator
         }
         
         // Also check for missing columns in existing tables
-        self::check_and_add_missing_columns();
+        $added_columns = self::check_and_add_missing_columns();
+        
+        // If columns were added, store info for admin notice
+        if (!empty($added_columns)) {
+            set_transient('homa_db_repairs_made', [
+                'tables' => [],
+                'columns' => $added_columns,
+            ], 60); // 1 minute
+        }
         
         return true;
     }
@@ -613,11 +627,13 @@ class HT_Activator
      * Check and add missing columns to existing tables
      * This handles schema updates without dropping tables
      *
-     * @return void
+     * @return array List of added columns
      */
-    private static function check_and_add_missing_columns(): void
+    private static function check_and_add_missing_columns(): array
     {
         global $wpdb;
+        
+        $added_columns = [];
         
         try {
             // Define expected columns for each table
@@ -657,6 +673,8 @@ class HT_Activator
                         // Add missing column
                         $wpdb->query("ALTER TABLE `{$table_name}` ADD COLUMN `{$column}` {$definition}");
                         
+                        $added_columns[] = "{$table}.{$column}";
+                        
                         \HomayeTabesh\HT_Error_Handler::log_error(
                             "Self-healing: Added missing column '{$column}' to table '{$table}'",
                             'database_repair'
@@ -667,5 +685,7 @@ class HT_Activator
         } catch (\Throwable $e) {
             \HomayeTabesh\HT_Error_Handler::log_exception($e, 'database_column_repair');
         }
+        
+        return $added_columns;
     }
 }
