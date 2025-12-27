@@ -103,13 +103,15 @@ class HT_Gemini_Client
                     $user_identifier = $this->get_user_identifier();
                     $filter_result = $shield->filter_input($prompt, $user_identifier);
                     
-                    if (!$filter_result['allowed']) {
+                    // Check if 'allowed' key exists before accessing
+                    if (isset($filter_result['allowed']) && !$filter_result['allowed']) {
                         return $this->get_fallback_response(
                             'متاسفم، این درخواست مجاز نیست. لطفاً سوال دیگری بپرسید.'
                         );
                     }
                     
-                    $prompt = $filter_result['prompt'];
+                    // Use filtered prompt if available, otherwise keep original
+                    $prompt = $filter_result['prompt'] ?? $prompt;
                 }
             }
 
@@ -155,9 +157,8 @@ class HT_Gemini_Client
                     
                     $filter_result = $shield->filter_output($response_text, $user_identifier);
                     
-                    if (!$filter_result['allowed']) {
-                        $parsed_response['response'] = $filter_result['response'];
-                    } else {
+                    // Always use the filtered response if available
+                    if (isset($filter_result['response'])) {
                         $parsed_response['response'] = $filter_result['response'];
                     }
                 }
@@ -170,11 +171,12 @@ class HT_Gemini_Client
                     $action_result = $orchestrator->execute_actions($parsed_response['actions'], $context);
                     
                     // Update response with action results
-                    if ($action_result['success']) {
-                        $parsed_response['response'] = $action_result['message'];
-                        $parsed_response['action_results'] = $action_result['results'];
+                    // Check if 'success' key exists before accessing
+                    if (isset($action_result['success']) && $action_result['success']) {
+                        $parsed_response['response'] = $action_result['message'] ?? '';
+                        $parsed_response['action_results'] = $action_result['results'] ?? [];
                     } else {
-                        $parsed_response['response'] = 'خطا در انجام عملیات: ' . $action_result['error'];
+                        $parsed_response['response'] = 'خطا در انجام عملیات: ' . ($action_result['error'] ?? 'خطای نامشخص');
                         $parsed_response['action_error'] = $action_result;
                     }
                 }
@@ -390,8 +392,9 @@ class HT_Gemini_Client
         }
 
         $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
         
-        // Handle 429 Quota Exceeded gracefully
+        // Handle various API error codes gracefully
         if ($status_code === 429) {
             // Log the quota exceeded error
             if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
@@ -405,12 +408,37 @@ class HT_Gemini_Client
             throw new \Exception('quota_exceeded:سهمیه روزانه API Gemini تمام شده است. لطفاً بعداً تلاش کنید.');
         }
         
+        if ($status_code === 401) {
+            throw new \Exception('quota_exceeded:کلید API نامعتبر است. لطفاً تنظیمات را بررسی کنید.');
+        }
+        
+        if ($status_code === 403) {
+            throw new \Exception('quota_exceeded:دسترسی به API Gemini مسدود شده است. لطفاً تنظیمات API را بررسی کنید.');
+        }
+        
+        if ($status_code === 503) {
+            throw new \Exception('quota_exceeded:سرویس Gemini موقتاً در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.');
+        }
+        
         if ($status_code !== 200) {
-            $body = wp_remote_retrieve_body($response);
-            throw new \Exception("API request failed with status $status_code: $body");
+            // Try to parse error details from response body
+            $error_details = json_decode($body, true);
+            $error_message = 'API request failed';
+            
+            if (isset($error_details['error']['message'])) {
+                $error_message = $error_details['error']['message'];
+            }
+            
+            if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
+                \HomayeTabesh\HT_Error_Handler::log_error(
+                    "Gemini API Error ($status_code): $error_message",
+                    'api_error'
+                );
+            }
+            
+            throw new \Exception("API request failed with status $status_code: $error_message");
         }
 
-        $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
@@ -619,7 +647,7 @@ class HT_Gemini_Client
             $parsed = $this->parse_response($response);
 
             // Extract visual commands from response
-            if ($parsed['success'] && !empty($parsed['raw_text'])) {
+            if (isset($parsed['success']) && $parsed['success'] && !empty($parsed['raw_text'])) {
                 $visual_commands = $this->extract_visual_commands($parsed['raw_text']);
                 $parsed['visual_commands'] = $visual_commands;
             }
