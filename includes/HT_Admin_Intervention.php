@@ -366,4 +366,61 @@ class HT_Admin_Intervention
             'pollInterval' => 5000 // 5 seconds
         ]);
     }
+
+    /**
+     * Send alert to admin
+     * Called by HT_Admin_Security_Alerts to notify admins of security events
+     *
+     * @param int $admin_id Admin user ID
+     * @param array $alert_data Alert data including type, severity, message, timestamp
+     * @return bool True on success, false on failure
+     */
+    public function send_alert_to_admin(int $admin_id, array $alert_data): bool
+    {
+        global $wpdb;
+
+        // Validate admin_id
+        if ($admin_id <= 0) {
+            return false;
+        }
+
+        // Validate user has admin capabilities
+        $user = get_userdata($admin_id);
+        if (!$user || !$user->has_cap('manage_options')) {
+            return false;
+        }
+
+        // Default values for alert data
+        $defaults = [
+            'type' => 'security_alert',
+            'severity' => 'medium',
+            'message' => '',
+            'timestamp' => current_time('mysql'),
+        ];
+
+        $alert = wp_parse_args($alert_data, $defaults);
+
+        // Create a special session for admin notifications
+        $session_id = 'admin_alert_' . $admin_id . '_' . time();
+
+        // Insert alert as an intervention message
+        $result = $wpdb->insert(
+            $this->table_name,
+            [
+                'session_id' => $session_id,
+                'user_id' => $admin_id,
+                'admin_id' => 0, // System-generated
+                'message' => $alert['message'],
+                'visual_commands' => wp_json_encode([
+                    'type' => $alert['type'],
+                    'severity' => $alert['severity'],
+                ]),
+                'status' => 'pending',
+                'created_at' => $alert['timestamp']
+            ],
+            ['%s', '%d', '%d', '%s', '%s', '%s', '%s']
+        );
+
+        return $result !== false;
+    }
 }
