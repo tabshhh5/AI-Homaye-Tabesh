@@ -413,11 +413,6 @@ class HT_Knowledge_Base
     {
         global $wpdb;
         
-        // Handle array input by converting to string or null
-        if (is_array($category)) {
-            $category = !empty($category) ? implode(',', $category) : null;
-        }
-        
         // Check if database table exists first
         $table_name = $wpdb->prefix . 'homaye_knowledge';
         
@@ -436,8 +431,20 @@ class HT_Knowledge_Base
         }
         
         if ($category !== null) {
-            $where[] = 'fact_category = %s';
-            $where_values[] = $category;
+            // Handle array input using IN clause for proper SQL matching
+            if (is_array($category)) {
+                if (empty($category)) {
+                    // Empty array means no results
+                    return [];
+                }
+                $placeholders = implode(', ', array_fill(0, count($category), '%s'));
+                $where[] = "fact_category IN ($placeholders)";
+                $where_values = array_merge($where_values, $category);
+            } else {
+                // Single string value
+                $where[] = 'fact_category = %s';
+                $where_values[] = $category;
+            }
         }
         
         $where_clause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -605,11 +612,6 @@ class HT_Knowledge_Base
         
         $table_name = $wpdb->prefix . 'homaye_indexed_pages';
         
-        // Check if table exists
-        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
-            return false;
-        }
-        
         // Get page/post data
         $post = get_post($page_id);
         if (!$post) {
@@ -618,7 +620,8 @@ class HT_Knowledge_Base
         
         // Prepare data
         $page_title = $post->post_title;
-        $page_content = wp_strip_all_tags($post->post_content);
+        // Apply content filters but strip most tags, preserving structure for better indexing
+        $page_content = wp_strip_all_tags(apply_filters('the_content', $post->post_content), '<p><br><h1><h2><h3>');
         $page_url = get_permalink($page_id);
         
         // Insert or update indexed page

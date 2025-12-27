@@ -637,8 +637,11 @@ final class HT_Core
                 
                 if ((time() - $last_check) > $check_interval) {
                     if (class_exists('\HomayeTabesh\HT_Activator')) {
-                        \HomayeTabesh\HT_Activator::check_and_repair_database();
-                        update_option('homa_db_last_check', time());
+                        $repaired = \HomayeTabesh\HT_Activator::check_and_repair_database();
+                        // Only update timestamp if check was performed (whether repairs were needed or not)
+                        if ($repaired !== false) {
+                            update_option('homa_db_last_check', time());
+                        }
                     }
                 }
             }, 5); // Early priority
