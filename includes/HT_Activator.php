@@ -44,7 +44,7 @@ class HT_Activator
      *
      * @return void
      */
-    private static function create_tables(): void
+    public static function create_tables(): void
     {
         try {
             global $wpdb;

@@ -819,11 +819,12 @@ final class HT_Core
             
             // Validate parse_url result
             if ($parsed_url && isset($parsed_url['scheme']) && isset($parsed_url['host'])) {
-                $domain = $parsed_url['scheme'] . '://' . $parsed_url['host'];
+                $domain = esc_url_raw($parsed_url['scheme'] . '://' . $parsed_url['host']);
                 
                 // Add CSP header to allow connection to GapGPT
                 // This allows wp_remote_post() to work with the API
-                header("Content-Security-Policy: connect-src 'self' $domain https://generativelanguage.googleapis.com", false);
+                // Note: Domain is already sanitized via esc_url_raw
+                header("Content-Security-Policy: connect-src 'self' " . esc_attr($domain) . " https://generativelanguage.googleapis.com", false);
             }
         }
     }

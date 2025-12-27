@@ -232,7 +232,7 @@ class HT_Gemini_Client
                     'raw_response' => wp_json_encode($response),
                     'latency_ms' => $latency_ms,
                     'tokens_used' => $response['usageMetadata']['totalTokenCount'] ?? null,
-                    'model_name' => $this->provider === 'gapgpt' ? $this->model : self::GEMINI_MODEL_NAME,
+                    'model_name' => $this->provider === 'gapgpt' ? ($this->model ?? 'unknown') : self::GEMINI_MODEL_NAME,
                     'context_data' => $context,
                     'status' => 'success',
                 ]);
@@ -442,16 +442,22 @@ class HT_Gemini_Client
         // Convert Gemini payload to OpenAI format
         $messages = [];
         
-        // Add system instruction if present
-        if (!empty($gemini_payload['systemInstruction']['parts'][0]['text'])) {
+        // Add system instruction if present (with proper validation)
+        if (isset($gemini_payload['systemInstruction']['parts']) && 
+            is_array($gemini_payload['systemInstruction']['parts']) &&
+            isset($gemini_payload['systemInstruction']['parts'][0]['text'])) {
             $messages[] = [
                 'role' => 'system',
                 'content' => $gemini_payload['systemInstruction']['parts'][0]['text']
             ];
         }
         
-        // Add user message
-        if (!empty($gemini_payload['contents'][0]['parts'][0]['text'])) {
+        // Add user message (with proper validation)
+        if (isset($gemini_payload['contents']) && 
+            is_array($gemini_payload['contents']) &&
+            isset($gemini_payload['contents'][0]['parts']) &&
+            is_array($gemini_payload['contents'][0]['parts']) &&
+            isset($gemini_payload['contents'][0]['parts'][0]['text'])) {
             $messages[] = [
                 'role' => 'user',
                 'content' => $gemini_payload['contents'][0]['parts'][0]['text']
@@ -465,7 +471,7 @@ class HT_Gemini_Client
         ];
         
         // Add temperature if specified
-        if (!empty($gemini_payload['generationConfig']['temperature'])) {
+        if (isset($gemini_payload['generationConfig']['temperature'])) {
             $payload['temperature'] = $gemini_payload['generationConfig']['temperature'];
         }
         
