@@ -407,7 +407,6 @@ class HT_Gemini_Client
     }
 
     /**
-    /**
      * Make API request to configured provider
      *
      * @param array $payload Request payload
@@ -462,6 +461,11 @@ class HT_Gemini_Client
                 'role' => 'user',
                 'content' => $gemini_payload['contents'][0]['parts'][0]['text']
             ];
+        }
+        
+        // Ensure at least one message exists
+        if (empty($messages)) {
+            throw new \Exception('No valid messages found in payload');
         }
         
         // Build OpenAI-compatible payload
