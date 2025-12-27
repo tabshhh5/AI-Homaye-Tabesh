@@ -99,6 +99,11 @@ class HT_Admin
      */
     public function register_settings(): void
     {
+        // Ensure database tables exist before loading settings
+        if (class_exists('\HomayeTabesh\HT_Activator')) {
+            \HomayeTabesh\HT_Activator::ensure_tables_exist();
+        }
+
         register_setting('homaye_tabesh_settings', 'ht_gemini_api_key', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_text_field',
@@ -158,12 +163,76 @@ class HT_Admin
             'default' => true,
         ]);
 
-        // Add settings section
+        // Global AI Configuration settings
+        register_setting('homaye_tabesh_settings', 'ht_ai_provider', [
+            'type' => 'string',
+            'default' => 'gemini_direct',
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
+        register_setting('homaye_tabesh_settings', 'ht_ai_model', [
+            'type' => 'string',
+            'default' => 'gemini-2.0-flash',
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
+        register_setting('homaye_tabesh_settings', 'ht_gapgpt_base_url', [
+            'type' => 'string',
+            'default' => 'https://api.gapgpt.app/v1',
+            'sanitize_callback' => 'esc_url_raw',
+        ]);
+
+        register_setting('homaye_tabesh_settings', 'ht_gapgpt_api_key', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
+        // Add settings sections
+        add_settings_section(
+            'ht_ai_config_section',
+            __('پیکربندی سراسری هوش مصنوعی', 'homaye-tabesh'),
+            [$this, 'render_ai_config_section_info'],
+            'homaye-tabesh'
+        );
+
         add_settings_section(
             'ht_main_section',
             __('تنظیمات اصلی', 'homaye-tabesh'),
             null,
             'homaye-tabesh'
+        );
+
+        // Add AI Configuration fields
+        add_settings_field(
+            'ht_ai_provider',
+            __('انتخاب سرویس‌دهنده', 'homaye-tabesh'),
+            [$this, 'render_ai_provider_field'],
+            'homaye-tabesh',
+            'ht_ai_config_section'
+        );
+
+        add_settings_field(
+            'ht_ai_model',
+            __('انتخاب مدل هوشمند', 'homaye-tabesh'),
+            [$this, 'render_ai_model_field'],
+            'homaye-tabesh',
+            'ht_ai_config_section'
+        );
+
+        add_settings_field(
+            'ht_gapgpt_base_url',
+            __('آدرس پایه API', 'homaye-tabesh'),
+            [$this, 'render_gapgpt_base_url_field'],
+            'homaye-tabesh',
+            'ht_ai_config_section'
+        );
+
+        add_settings_field(
+            'ht_gapgpt_api_key',
+            __('کلید API GapGPT', 'homaye-tabesh'),
+            [$this, 'render_gapgpt_api_key_field'],
+            'homaye-tabesh',
+            'ht_ai_config_section'
         );
 
         // Add settings fields
@@ -298,6 +367,108 @@ class HT_Admin
             });
         });
         </script>
+        <?php
+    }
+
+    /**
+     * Render AI configuration section info
+     */
+    public function render_ai_config_section_info(): void
+    {
+        ?>
+        <p class="description">
+            تنظیم سرویس‌دهنده و مدل هوش مصنوعی برای تمام عملیات «هما».
+            می‌توانید بین Google Gemini Direct یا GapGPT Gateway (سازگار با OpenAI) انتخاب کنید.
+        </p>
+        <?php
+    }
+
+    /**
+     * Render AI provider selection field
+     */
+    public function render_ai_provider_field(): void
+    {
+        $value = get_option('ht_ai_provider', 'gemini_direct');
+        ?>
+        <select id="ht_ai_provider" name="ht_ai_provider">
+            <option value="gemini_direct" <?php selected($value, 'gemini_direct'); ?>>
+                Google Gemini Direct
+            </option>
+            <option value="gapgpt" <?php selected($value, 'gapgpt'); ?>>
+                GapGPT Gateway
+            </option>
+        </select>
+        <p class="description">
+            انتخاب سرویس‌دهنده API برای هوش مصنوعی.
+        </p>
+        <?php
+    }
+
+    /**
+     * Render AI model selection field
+     */
+    public function render_ai_model_field(): void
+    {
+        $value = get_option('ht_ai_model', 'gemini-2.0-flash');
+        $models = [
+            'grok-3-mini' => 'Grok 3 Mini',
+            'gemini-2.0-flash' => 'Gemini 2.0 Flash',
+            'qwen3-235b-a22b' => 'Qwen3 235B A22B',
+            'deepseek-chat' => 'DeepSeek Chat',
+            'claude-sonnet-4-20250514' => 'Claude Sonnet 4',
+            'gpt-4o-mini' => 'GPT-4o Mini',
+        ];
+        ?>
+        <select id="ht_ai_model" name="ht_ai_model">
+            <?php foreach ($models as $model_value => $model_label): ?>
+                <option value="<?php echo esc_attr($model_value); ?>" <?php selected($value, $model_value); ?>>
+                    <?php echo esc_html($model_label); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <p class="description">
+            مدل هوش مصنوعی مورد استفاده برای پردازش درخواست‌ها. این مدل‌ها از طریق GapGPT قابل دسترسی هستند.
+        </p>
+        <?php
+    }
+
+    /**
+     * Render GapGPT base URL field
+     */
+    public function render_gapgpt_base_url_field(): void
+    {
+        $value = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
+        ?>
+        <input type="url" 
+               id="ht_gapgpt_base_url" 
+               name="ht_gapgpt_base_url" 
+               value="<?php echo esc_attr($value); ?>" 
+               class="regular-text"
+               placeholder="https://api.gapgpt.app/v1">
+        <p class="description">
+            آدرس پایه API برای GapGPT. می‌توانید از https://api.gapapi.com/v1 برای CDN خارجی استفاده کنید.
+        </p>
+        <?php
+    }
+
+    /**
+     * Render GapGPT API key field
+     */
+    public function render_gapgpt_api_key_field(): void
+    {
+        $value = get_option('ht_gapgpt_api_key', '');
+        ?>
+        <input type="text" 
+               id="ht_gapgpt_api_key" 
+               name="ht_gapgpt_api_key" 
+               value="<?php echo esc_attr($value); ?>" 
+               class="regular-text"
+               placeholder="gapgpt_...">
+        <p class="description">
+            کلید API خود را از 
+            <a href="https://gapgpt.app" target="_blank">پنل توسعه‌دهندگان GapGPT</a> 
+            دریافت کنید. این فیلد فقط برای GapGPT Gateway نیاز است.
+        </p>
         <?php
     }
 

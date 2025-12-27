@@ -628,6 +628,11 @@ final class HT_Core
      */
     private function register_hooks(): void
     {
+        // Add CSP header support for GapGPT API
+        $this->safe_call(function() {
+            add_action('send_headers', [$this, 'modify_csp_headers']);
+        }, 'csp_headers');
+
         // Database self-healing check (admin_init hook)
         $this->safe_call(function() {
             add_action('admin_init', function() {
@@ -796,6 +801,26 @@ final class HT_Core
     {
         if (is_404() && $this->behavior_tracker) {
             $this->behavior_tracker->track_404_error();
+        }
+    }
+
+    /**
+     * Modify CSP headers to allow GapGPT API domain
+     *
+     * @return void
+     */
+    public function modify_csp_headers(): void
+    {
+        // Only modify if GapGPT provider is selected
+        $provider = get_option('ht_ai_provider', 'gemini_direct');
+        if ($provider === 'gapgpt') {
+            $base_url = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
+            $parsed_url = parse_url($base_url);
+            $domain = $parsed_url['scheme'] . '://' . $parsed_url['host'];
+            
+            // Add CSP header to allow connection to GapGPT
+            // This allows wp_remote_post() to work with the API
+            header("Content-Security-Policy: connect-src 'self' $domain https://generativelanguage.googleapis.com", false);
         }
     }
 

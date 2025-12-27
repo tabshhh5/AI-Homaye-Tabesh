@@ -1,6 +1,7 @@
 <?php
 /**
- * Gemini 2.5 Flash API Client
+ * AI Client (Flexible)
+ * Supports both Google Gemini Direct and GapGPT Gateway (OpenAI-compatible)
  *
  * @package HomayeTabesh
  * @since 1.0.0
@@ -11,25 +12,40 @@ declare(strict_types=1);
 namespace HomayeTabesh;
 
 /**
- * موتور استنتاج Gemini 2.5 Flash
- * پشتیبانی از Structured Outputs و Context Injection
+ * موتور استنتاج هوش مصنوعی (انعطاف‌پذیر)
+ * پشتیبانی از Gemini Direct و GapGPT Gateway
  */
 class HT_Gemini_Client
 {
     /**
-     * API base URL
+     * API base URL (Gemini Direct)
      */
-    private const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
+    private const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
     /**
-     * Model name
+     * Model name (Gemini Direct - legacy)
      */
-    private const MODEL_NAME = 'gemini-2.0-flash-exp';
+    private const GEMINI_MODEL_NAME = 'gemini-2.0-flash-exp';
 
     /**
      * API key
      */
     private string $api_key;
+
+    /**
+     * Provider (gemini_direct or gapgpt)
+     */
+    private string $provider;
+
+    /**
+     * Model name
+     */
+    private string $model;
+
+    /**
+     * Base URL (for GapGPT)
+     */
+    private string $base_url;
 
     /**
      * WooCommerce availability cache
@@ -48,18 +64,40 @@ class HT_Gemini_Client
         $this->woocommerce_active = class_exists('WooCommerce');
         // Do NOT call get_option() here - API key loaded on-demand
         $this->api_key = '';
+        $this->provider = '';
+        $this->model = '';
+        $this->base_url = '';
     }
     
     /**
-     * Get API key (lazy loading)
+     * Get API key and configuration (lazy loading)
+     *
+     * @return void
+     */
+    private function load_config(): void
+    {
+        if (empty($this->provider) && function_exists('get_option')) {
+            $this->provider = get_option('ht_ai_provider', 'gemini_direct');
+            $this->model = get_option('ht_ai_model', 'gemini-2.0-flash');
+            $this->base_url = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
+            
+            // Load appropriate API key based on provider
+            if ($this->provider === 'gapgpt') {
+                $this->api_key = get_option('ht_gapgpt_api_key', '');
+            } else {
+                $this->api_key = get_option('ht_gemini_api_key', '');
+            }
+        }
+    }
+
+    /**
+     * Get API key (legacy method for backward compatibility)
      *
      * @return string
      */
     private function get_api_key(): string
     {
-        if (empty($this->api_key) && function_exists('get_option')) {
-            $this->api_key = get_option('ht_gemini_api_key', '');
-        }
+        $this->load_config();
         return $this->api_key;
     }
 
@@ -184,6 +222,7 @@ class HT_Gemini_Client
 
             // PR18: Log successful transaction to BlackBox
             if (class_exists('\HomayeTabesh\HT_BlackBox_Logger')) {
+                $this->load_config();
                 $logger = new HT_BlackBox_Logger();
                 $logger->log_ai_transaction([
                     'log_type' => 'ai_transaction',
@@ -193,7 +232,7 @@ class HT_Gemini_Client
                     'raw_response' => wp_json_encode($response),
                     'latency_ms' => $latency_ms,
                     'tokens_used' => $response['usageMetadata']['totalTokenCount'] ?? null,
-                    'model_name' => self::MODEL_NAME,
+                    'model_name' => $this->provider === 'gapgpt' ? $this->model : self::GEMINI_MODEL_NAME,
                     'context_data' => $context,
                     'status' => 'success',
                 ]);
@@ -374,10 +413,149 @@ class HT_Gemini_Client
      * @return array Response data
      * @throws \Exception If request fails
      */
+    /**
+     * Make API request to configured provider
+     *
+     * @param array $payload Request payload
+     * @return array Response data
+     * @throws \Exception
+     */
     private function make_request(array $payload): array
     {
-        $api_key = $this->get_api_key();
-        $url = self::API_BASE_URL . self::MODEL_NAME . ':generateContent?key=' . $api_key;
+        $this->load_config();
+        
+        if (empty($this->api_key)) {
+            throw new \Exception('API key not configured for ' . $this->provider);
+        }
+
+        // Build request based on provider
+        if ($this->provider === 'gapgpt') {
+            return $this->make_gapgpt_request($payload);
+        } else {
+            return $this->make_gemini_request($payload);
+        }
+    }
+
+    /**
+     * Make request to GapGPT (OpenAI-compatible)
+     *
+     * @param array $payload Gemini-style payload
+     * @return array Response data
+     * @throws \Exception
+     */
+    private function make_gapgpt_request(array $gemini_payload): array
+    {
+        // Convert Gemini payload to OpenAI format
+        $messages = [];
+        
+        // Add system instruction if present
+        if (!empty($gemini_payload['systemInstruction']['parts'][0]['text'])) {
+            $messages[] = [
+                'role' => 'system',
+                'content' => $gemini_payload['systemInstruction']['parts'][0]['text']
+            ];
+        }
+        
+        // Add user message
+        if (!empty($gemini_payload['contents'][0]['parts'][0]['text'])) {
+            $messages[] = [
+                'role' => 'user',
+                'content' => $gemini_payload['contents'][0]['parts'][0]['text']
+            ];
+        }
+        
+        // Build OpenAI-compatible payload
+        $payload = [
+            'model' => $this->model,
+            'messages' => $messages,
+        ];
+        
+        // Add temperature if specified
+        if (!empty($gemini_payload['generationConfig']['temperature'])) {
+            $payload['temperature'] = $gemini_payload['generationConfig']['temperature'];
+        }
+        
+        $url = rtrim($this->base_url, '/') . '/chat/completions';
+        
+        $response = wp_remote_post($url, [
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->api_key,
+            ],
+            'body' => wp_json_encode($payload),
+            'timeout' => 30,
+        ]);
+
+        if (is_wp_error($response)) {
+            throw new \Exception($response->get_error_message());
+        }
+
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        
+        // Handle error codes
+        if ($status_code === 429) {
+            throw new \Exception('quota_exceeded:سهمیه API تمام شده است. لطفاً بعداً تلاش کنید.');
+        }
+        
+        if ($status_code === 401) {
+            throw new \Exception('auth_failed:کلید API نامعتبر است. لطفاً تنظیمات را بررسی کنید.');
+        }
+        
+        if ($status_code === 403) {
+            throw new \Exception('access_denied:دسترسی مسدود شده است.');
+        }
+        
+        if ($status_code !== 200) {
+            $error_details = json_decode($body, true);
+            $error_message = $error_details['error']['message'] ?? 'API request failed';
+            throw new \Exception("API request failed with status $status_code: $error_message");
+        }
+
+        $data = json_decode($body, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception('Failed to parse API response');
+        }
+
+        // Convert OpenAI response format to Gemini-compatible format
+        $converted = [
+            'candidates' => [
+                [
+                    'content' => [
+                        'parts' => [
+                            [
+                                'text' => $data['choices'][0]['message']['content'] ?? ''
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+        
+        // Add usage metadata if available
+        if (!empty($data['usage'])) {
+            $converted['usageMetadata'] = [
+                'promptTokenCount' => $data['usage']['prompt_tokens'] ?? 0,
+                'candidatesTokenCount' => $data['usage']['completion_tokens'] ?? 0,
+                'totalTokenCount' => $data['usage']['total_tokens'] ?? 0,
+            ];
+        }
+
+        return $converted;
+    }
+
+    /**
+     * Make request to Gemini Direct
+     *
+     * @param array $payload Request payload
+     * @return array Response data
+     * @throws \Exception
+     */
+    private function make_gemini_request(array $payload): array
+    {
+        $api_key = $this->api_key;
+        $url = self::GEMINI_API_BASE_URL . self::GEMINI_MODEL_NAME . ':generateContent?key=' . $api_key;
 
         $response = wp_remote_post($url, [
             'headers' => [
