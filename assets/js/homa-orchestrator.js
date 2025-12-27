@@ -401,5 +401,14 @@
             window.HomaOrchestrator.init();
         }
     }
+    
+    // CRITICAL FIX: Ensure sidebar container exists BEFORE any React code runs
+    // This is a fail-safe to prevent blank screen errors
+    setTimeout(() => {
+        if (!document.getElementById('homa-sidebar-view')) {
+            console.warn('[Homa Orchestrator] Sidebar container missing after init - creating emergency fallback');
+            window.HomaOrchestrator.createFallbackSidebar();
+        }
+    }, 50); // Small delay to let init complete
 
 })();

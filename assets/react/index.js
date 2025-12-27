@@ -3,14 +3,16 @@ import ReactDOM from 'react-dom/client';
 import HomaSidebar from './components/HomaSidebar';
 import './styles/parallel-ui.css';
 
-// Configuration constant for initialization timing
+// Configuration constants for initialization timing
 const ORCHESTRATOR_INIT_DELAY = 100; // milliseconds
+const MAX_INIT_RETRIES = 3;
+const RETRY_DELAY = 200; // milliseconds between retries
 
 /**
- * Initialize Homa Parallel UI
+ * Initialize Homa Parallel UI with retry logic
  * This function is called by WordPress when the page loads
  */
-window.initHomaParallelUI = function() {
+window.initHomaParallelUI = function(retryCount = 0) {
     // Validate React is available
     if (typeof window.React === 'undefined' || typeof window.ReactDOM === 'undefined') {
         console.error('[Homa] React or ReactDOM not loaded. Please check CDN availability.');
@@ -34,19 +36,28 @@ window.initHomaParallelUI = function() {
     }
 
     // Check if container exists (orchestrator should have created it)
-    const container = document.getElementById('homa-sidebar-view');
+    let container = document.getElementById('homa-sidebar-view');
     if (!container) {
-        console.error('[Homa] Sidebar container not found - orchestrator may have failed');
+        console.warn(`[Homa] Sidebar container not found (attempt ${retryCount + 1}/${MAX_INIT_RETRIES})`);
+        
         // Try to create a fallback container
         if (window.HomaOrchestrator && window.HomaOrchestrator.createFallbackSidebar) {
             window.HomaOrchestrator.createFallbackSidebar();
-            // Try again after creating fallback
-            const fallbackContainer = document.getElementById('homa-sidebar-view');
-            if (!fallbackContainer) {
-                console.error('[Homa] Failed to create fallback sidebar container. Please refresh the page or check browser console for JavaScript errors.');
-                return;
-            }
-        } else {
+            container = document.getElementById('homa-sidebar-view');
+        }
+        
+        // If still no container and we have retries left, try again
+        if (!container && retryCount < MAX_INIT_RETRIES) {
+            console.log(`[Homa] Retrying initialization in ${RETRY_DELAY}ms...`);
+            setTimeout(() => {
+                window.initHomaParallelUI(retryCount + 1);
+            }, RETRY_DELAY);
+            return;
+        }
+        
+        // Final failure
+        if (!container) {
+            console.error('[Homa] Failed to create sidebar container after all retries. Check console for errors.');
             return;
         }
     }
