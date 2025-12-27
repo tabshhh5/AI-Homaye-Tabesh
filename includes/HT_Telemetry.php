@@ -40,6 +40,20 @@ class HT_Telemetry
             'permission_callback' => '__return_true',
         ]);
         
+        // Add behavior tracking endpoint
+        register_rest_route('homaye/v1', '/telemetry/behavior', [
+            'methods' => 'POST',
+            'callback' => [$this, 'handle_behavior_event'],
+            'permission_callback' => '__return_true',
+        ]);
+        
+        // Add conversion trigger endpoint
+        register_rest_route('homaye/v1', '/conversion/trigger', [
+            'methods' => 'POST',
+            'callback' => [$this, 'handle_conversion_trigger'],
+            'permission_callback' => '__return_true',
+        ]);
+        
         register_rest_route('homaye/v1', '/context/woocommerce', [
             'methods' => 'GET',
             'callback' => [$this, 'get_woocommerce_context'],
@@ -171,6 +185,95 @@ class HT_Telemetry
             'recorded' => $success_count,
             'total' => count($events),
         ], 200);
+    }
+
+    /**
+     * Handle behavior event (for conversion triggers)
+     *
+     * @param \WP_REST_Request $request Request object
+     * @return \WP_REST_Response Response
+     */
+    public function handle_behavior_event(\WP_REST_Request $request): \WP_REST_Response
+    {
+        $behavior_type = $request->get_param('behavior_type');
+        $trigger_data = $request->get_param('trigger_data');
+        $user_identifier = $request->get_param('user_id') ?? $this->get_user_identifier();
+
+        if (empty($behavior_type)) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'Behavior type is required',
+            ], 400);
+        }
+
+        // Save behavior event
+        $saved = $this->save_event(
+            $user_identifier,
+            'behavior_trigger',
+            $behavior_type,
+            $trigger_data
+        );
+
+        if ($saved) {
+            return new \WP_REST_Response([
+                'success' => true,
+                'message' => 'Behavior event recorded',
+            ], 200);
+        }
+
+        return new \WP_REST_Response([
+            'success' => false,
+            'message' => 'Failed to record behavior event',
+        ], 500);
+    }
+
+    /**
+     * Handle conversion trigger
+     *
+     * @param \WP_REST_Request $request Request object
+     * @return \WP_REST_Response Response
+     */
+    public function handle_conversion_trigger(\WP_REST_Request $request): \WP_REST_Response
+    {
+        $trigger_type = $request->get_param('trigger_type');
+        $context = $request->get_param('context');
+        $user_identifier = $request->get_param('user_id') ?? $this->get_user_identifier();
+
+        if (empty($trigger_type)) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'Trigger type is required',
+            ], 400);
+        }
+
+        // Save conversion trigger
+        $saved = $this->save_event(
+            $user_identifier,
+            'conversion_trigger',
+            $trigger_type,
+            $context
+        );
+
+        if ($saved) {
+            // Update persona score for conversion behavior
+            $this->update_persona_score(
+                $user_identifier,
+                'conversion_trigger',
+                $trigger_type,
+                $context
+            );
+
+            return new \WP_REST_Response([
+                'success' => true,
+                'message' => 'Conversion trigger recorded',
+                'trigger_type' => $trigger_type,
+            ], 200);
+        }
+
+        return new \WP_REST_Response([
+            'success' => false,
+            'message' => 'Failed to record conversion trigger',
+        ], 500);
     }
 
     /**

@@ -22,6 +22,7 @@ class HT_Admin
     {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('wp_ajax_test_gapgpt_connection', [$this, 'test_gapgpt_connection']);
     }
 
     /**
@@ -466,11 +467,59 @@ class HT_Admin
                value="<?php echo esc_attr($value); ?>" 
                class="regular-text"
                placeholder="gapgpt_...">
+        <button type="button" id="test-gapgpt-connection" class="button button-secondary" style="margin-left: 10px;">
+            🔌 تست اتصال
+        </button>
+        <span id="gapgpt-test-result" style="margin-left: 10px;"></span>
         <p class="description">
             کلید API خود را از 
             <a href="https://gapgpt.app" target="_blank">پنل توسعه‌دهندگان GapGPT</a> 
             دریافت کنید. این فیلد فقط برای GapGPT Gateway نیاز است.
         </p>
+        <script>
+        jQuery(document).ready(function($) {
+            $('#test-gapgpt-connection').on('click', function() {
+                var $button = $(this);
+                var $result = $('#gapgpt-test-result');
+                var apiKey = $('#ht_gapgpt_api_key').val();
+                var baseUrl = $('#ht_gapgpt_base_url').val();
+                var provider = $('#ht_ai_provider').val();
+                
+                if (!apiKey && provider === 'gapgpt') {
+                    $result.html('<span style="color: #d63638;">❌ لطفاً ابتدا کلید API را وارد کنید</span>');
+                    return;
+                }
+                
+                $button.prop('disabled', true).text('⏳ در حال تست...');
+                $result.html('');
+                
+                $.ajax({
+                    url: ajaxurl,
+                    method: 'POST',
+                    data: {
+                        action: 'test_gapgpt_connection',
+                        api_key: apiKey,
+                        base_url: baseUrl,
+                        provider: provider,
+                        nonce: '<?php echo wp_create_nonce('test_gapgpt_connection'); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $result.html('<span style="color: #00a32a;">✅ ' + response.data.message + '</span>');
+                        } else {
+                            $result.html('<span style="color: #d63638;">❌ ' + response.data.message + '</span>');
+                        }
+                    },
+                    error: function() {
+                        $result.html('<span style="color: #d63638;">❌ خطا در برقراری ارتباط با سرور</span>');
+                    },
+                    complete: function() {
+                        $button.prop('disabled', false).text('🔌 تست اتصال');
+                    }
+                });
+            });
+        });
+        </script>
         <?php
     }
 
@@ -1496,5 +1545,110 @@ class HT_Admin
             <div id="homa-super-console-root"></div>
         </div>
         <?php
+    }
+
+    /**
+     * Test GapGPT connection via AJAX
+     *
+     * @return void
+     */
+    public function test_gapgpt_connection(): void
+    {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'test_gapgpt_connection')) {
+            wp_send_json_error(['message' => 'امنیت: درخواست نامعتبر است']);
+            return;
+        }
+
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'شما دسترسی لازم را ندارید']);
+            return;
+        }
+
+        $provider = isset($_POST['provider']) ? sanitize_text_field($_POST['provider']) : 'gemini_direct';
+        $api_key = isset($_POST['api_key']) ? sanitize_text_field($_POST['api_key']) : '';
+        $base_url = isset($_POST['base_url']) ? esc_url_raw($_POST['base_url']) : 'https://api.gapgpt.app/v1';
+
+        // Test based on provider
+        if ($provider === 'gapgpt') {
+            if (empty($api_key)) {
+                wp_send_json_error(['message' => 'کلید API برای GapGPT الزامی است']);
+                return;
+            }
+
+            // Test GapGPT connection
+            $test_url = rtrim($base_url, '/') . '/chat/completions';
+            $response = wp_remote_post($test_url, [
+                'timeout' => 15,
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Bearer ' . $api_key,
+                ],
+                'body' => wp_json_encode([
+                    'model' => 'gemini-2.0-flash',
+                    'messages' => [
+                        ['role' => 'user', 'content' => 'سلام']
+                    ],
+                    'max_tokens' => 10,
+                ]),
+            ]);
+
+            if (is_wp_error($response)) {
+                wp_send_json_error(['message' => 'خطا در ارتباط: ' . $response->get_error_message()]);
+                return;
+            }
+
+            $status_code = wp_remote_retrieve_response_code($response);
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+
+            if ($status_code === 200 || $status_code === 201) {
+                wp_send_json_success(['message' => 'اتصال موفق! GapGPT به درستی کار می‌کند']);
+            } elseif ($status_code === 401) {
+                wp_send_json_error(['message' => 'کلید API نامعتبر است']);
+            } elseif ($status_code === 429) {
+                wp_send_json_error(['message' => 'محدودیت درخواست: لطفاً کمی صبر کنید']);
+            } else {
+                $error_msg = isset($body['error']['message']) ? $body['error']['message'] : 'خطای ناشناخته';
+                wp_send_json_error(['message' => 'خطا (' . $status_code . '): ' . $error_msg]);
+            }
+        } else {
+            // Test Gemini Direct
+            $gemini_api_key = get_option('ht_gemini_api_key', '');
+            if (empty($gemini_api_key)) {
+                wp_send_json_error(['message' => 'کلید API Gemini تنظیم نشده است']);
+                return;
+            }
+
+            $test_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' . $gemini_api_key;
+            $response = wp_remote_post($test_url, [
+                'timeout' => 15,
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                ],
+                'body' => wp_json_encode([
+                    'contents' => [
+                        ['parts' => [['text' => 'سلام']]]
+                    ],
+                ]),
+            ]);
+
+            if (is_wp_error($response)) {
+                wp_send_json_error(['message' => 'خطا در ارتباط: ' . $response->get_error_message()]);
+                return;
+            }
+
+            $status_code = wp_remote_retrieve_response_code($response);
+            
+            if ($status_code === 200) {
+                wp_send_json_success(['message' => 'اتصال موفق! Gemini Direct به درستی کار می‌کند']);
+            } elseif ($status_code === 401 || $status_code === 403) {
+                wp_send_json_error(['message' => 'کلید API Gemini نامعتبر است']);
+            } elseif ($status_code === 429) {
+                wp_send_json_error(['message' => 'محدودیت درخواست: سهمیه API تمام شده']);
+            } else {
+                wp_send_json_error(['message' => 'خطا در ارتباط با Gemini (کد ' . $status_code . ')']);
+            }
+        }
     }
 }

@@ -32,6 +32,10 @@ class HT_Activator
             // Flush rewrite rules
             flush_rewrite_rules();
             
+            // Run health check and store results for display on next admin page load
+            $health_report = self::run_health_check();
+            set_transient('homa_activation_health_report', $health_report, 300); // 5 minutes
+            
             \HomayeTabesh\HT_Error_Handler::log_error('Plugin activated successfully', 'activation');
         } catch (\Throwable $e) {
             \HomayeTabesh\HT_Error_Handler::log_exception($e, 'activation');
@@ -580,7 +584,9 @@ class HT_Activator
         // Check which tables are missing
         foreach ($required_tables as $table) {
             $table_name = $wpdb->prefix . $table;
-            if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            // Table name is from trusted source (wpdb->prefix + hardcoded table name)
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name)) != $table_name) {
                 $missing_tables[] = $table;
             }
         }
@@ -636,19 +642,47 @@ class HT_Activator
         $added_columns = [];
         
         try {
-            // Define expected columns for each table
+            // Define expected columns for each table with comprehensive schema
             $table_columns = [
                 'homaye_monitored_plugins' => [
                     'is_monitored' => 'tinyint(1) DEFAULT 0',
+                    'is_active' => 'tinyint(1) DEFAULT 1',
+                    'plugin_version' => 'varchar(50) DEFAULT NULL',
+                    'metadata' => 'json DEFAULT NULL',
                 ],
                 'homaye_knowledge_facts' => [
                     'verified' => 'tinyint(1) DEFAULT 0',
+                    'fact_category' => 'varchar(50) DEFAULT \'general\'',
+                    'is_active' => 'tinyint(1) DEFAULT 1',
+                ],
+                'homaye_knowledge' => [
+                    'fact_category' => 'varchar(50) DEFAULT \'general\'',
+                    'is_active' => 'tinyint(1) DEFAULT 1',
                 ],
                 'homaye_security_scores' => [
                     'current_score' => 'int(11) DEFAULT 100',
                 ],
+                'homaye_user_behavior' => [
+                    'current_score' => 'int(11) DEFAULT 100',
+                ],
                 'homa_otp' => [
                     'is_verified' => 'tinyint(1) DEFAULT 0',
+                ],
+                'homa_leads' => [
+                    'lead_status' => 'varchar(50) DEFAULT \'new\'',
+                ],
+                'homaye_leads' => [
+                    'lead_status' => 'varchar(50) DEFAULT \'new\'',
+                ],
+                'homaye_conversion_sessions' => [
+                    'conversion_status' => 'varchar(50) DEFAULT \'in_progress\'',
+                ],
+                'homaye_ai_requests' => [
+                    'status' => 'varchar(20) DEFAULT \'success\'',
+                ],
+                'homa_user_interests' => [
+                    'interest_score' => 'int(11) DEFAULT 0',
+                    'category_slug' => 'varchar(50) NOT NULL',
                 ],
             ];
             
@@ -742,5 +776,250 @@ class HT_Activator
         } catch (\Throwable $e) {
             \HomayeTabesh\HT_Error_Handler::log_exception($e, 'ensure_tables_exist');
         }
+    }
+
+    /**
+     * Comprehensive health check for plugin dependencies and database
+     * Returns detailed report for admin display
+     *
+     * @return array Health check results with status and messages
+     */
+    public static function run_health_check(): array
+    {
+        $report = [
+            'status' => 'healthy',
+            'checks' => [],
+            'errors' => [],
+            'warnings' => [],
+            'recommendations' => [],
+        ];
+
+        try {
+            // Check PHP version
+            $php_version = PHP_VERSION;
+            $required_php = '8.2';
+            if (version_compare($php_version, $required_php, '>=')) {
+                $report['checks'][] = [
+                    'name' => 'PHP Version',
+                    'status' => 'pass',
+                    'message' => "PHP {$php_version} (Required: {$required_php}+)",
+                ];
+            } else {
+                $report['status'] = 'critical';
+                $report['errors'][] = "PHP version {$php_version} is too old. Required: {$required_php}+";
+                $report['checks'][] = [
+                    'name' => 'PHP Version',
+                    'status' => 'fail',
+                    'message' => "PHP {$php_version} - Requires upgrade to {$required_php}+",
+                ];
+            }
+
+            // Check WordPress version
+            global $wp_version;
+            $required_wp = '6.0';
+            if (version_compare($wp_version, $required_wp, '>=')) {
+                $report['checks'][] = [
+                    'name' => 'WordPress Version',
+                    'status' => 'pass',
+                    'message' => "WordPress {$wp_version} (Required: {$required_wp}+)",
+                ];
+            } else {
+                $report['status'] = 'critical';
+                $report['errors'][] = "WordPress version {$wp_version} is too old. Required: {$required_wp}+";
+                $report['checks'][] = [
+                    'name' => 'WordPress Version',
+                    'status' => 'fail',
+                    'message' => "WordPress {$wp_version} - Requires upgrade to {$required_wp}+",
+                ];
+            }
+
+            // Check database tables
+            global $wpdb;
+            $required_tables = [
+                'homaye_persona_scores',
+                'homaye_telemetry_events',
+                'homaye_conversion_sessions',
+                'homa_vault',
+                'homa_sessions',
+                'homa_user_interests',
+                'homa_leads',
+                'homaye_ai_requests',
+                'homaye_knowledge',
+                'homaye_security_scores',
+                'homaye_monitored_plugins',
+            ];
+
+            $missing_tables = [];
+            foreach ($required_tables as $table) {
+                $table_name = $wpdb->prefix . $table;
+                // Table name is from trusted source (wpdb->prefix + hardcoded table name)
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name)) != $table_name) {
+                    $missing_tables[] = $table;
+                }
+            }
+
+            if (empty($missing_tables)) {
+                $report['checks'][] = [
+                    'name' => 'Database Tables',
+                    'status' => 'pass',
+                    'message' => 'All required tables exist',
+                ];
+            } else {
+                if ($report['status'] === 'healthy') {
+                    $report['status'] = 'warning';
+                }
+                $report['warnings'][] = 'Missing tables: ' . implode(', ', $missing_tables);
+                $report['checks'][] = [
+                    'name' => 'Database Tables',
+                    'status' => 'warning',
+                    'message' => 'Missing ' . count($missing_tables) . ' tables - will be auto-created',
+                ];
+            }
+
+            // Check WooCommerce (optional but recommended)
+            if (class_exists('WooCommerce')) {
+                $report['checks'][] = [
+                    'name' => 'WooCommerce',
+                    'status' => 'pass',
+                    'message' => 'WooCommerce is active',
+                ];
+            } else {
+                if ($report['status'] === 'healthy') {
+                    $report['status'] = 'warning';
+                }
+                $report['warnings'][] = 'WooCommerce not detected - some features will be limited';
+                $report['recommendations'][] = 'Install WooCommerce for full e-commerce features';
+                $report['checks'][] = [
+                    'name' => 'WooCommerce',
+                    'status' => 'warning',
+                    'message' => 'Not installed - e-commerce features limited',
+                ];
+            }
+
+            // Check Gemini API key
+            $api_key = get_option('ht_gemini_api_key', '');
+            if (!empty($api_key)) {
+                $report['checks'][] = [
+                    'name' => 'Gemini API Key',
+                    'status' => 'pass',
+                    'message' => 'API key configured',
+                ];
+            } else {
+                if ($report['status'] === 'healthy') {
+                    $report['status'] = 'warning';
+                }
+                $report['warnings'][] = 'Gemini API key not configured';
+                $report['recommendations'][] = 'Configure Gemini API key in plugin settings';
+                $report['checks'][] = [
+                    'name' => 'Gemini API Key',
+                    'status' => 'warning',
+                    'message' => 'Not configured - AI features disabled',
+                ];
+            }
+
+            // Check write permissions
+            $upload_dir = wp_upload_dir();
+            if (wp_is_writable($upload_dir['basedir'])) {
+                $report['checks'][] = [
+                    'name' => 'File Permissions',
+                    'status' => 'pass',
+                    'message' => 'Upload directory is writable',
+                ];
+            } else {
+                if ($report['status'] !== 'critical') {
+                    $report['status'] = 'warning';
+                }
+                $report['warnings'][] = 'Upload directory is not writable';
+                $report['checks'][] = [
+                    'name' => 'File Permissions',
+                    'status' => 'warning',
+                    'message' => 'Upload directory not writable - may affect file operations',
+                ];
+            }
+
+            // Check REST API availability
+            $rest_url = rest_url('homaye/v1/health');
+            $report['checks'][] = [
+                'name' => 'REST API',
+                'status' => 'info',
+                'message' => 'Endpoints will be registered on next request',
+            ];
+
+        } catch (\Throwable $e) {
+            $report['status'] = 'error';
+            $report['errors'][] = 'Health check failed: ' . $e->getMessage();
+            \HomayeTabesh\HT_Error_Handler::log_exception($e, 'health_check');
+        }
+
+        return $report;
+    }
+
+    /**
+     * Display health check report as admin notice
+     *
+     * @param array $report Health check report from run_health_check()
+     * @return void
+     */
+    public static function display_health_report(array $report): void
+    {
+        $status_classes = [
+            'healthy' => 'notice-success',
+            'warning' => 'notice-warning',
+            'critical' => 'notice-error',
+            'error' => 'notice-error',
+        ];
+
+        $status_class = $status_classes[$report['status']] ?? 'notice-info';
+        $status_icons = [
+            'healthy' => '✅',
+            'warning' => '⚠️',
+            'critical' => '❌',
+            'error' => '❌',
+        ];
+        $status_icon = $status_icons[$report['status']] ?? 'ℹ️';
+
+        echo '<div class="notice ' . esc_attr($status_class) . '">';
+        echo '<h3>' . esc_html($status_icon) . ' ' . esc_html__('همای تابش - گزارش سلامت افزونه', 'homaye-tabesh') . '</h3>';
+
+        if (!empty($report['errors'])) {
+            echo '<h4>' . esc_html__('خطاهای بحرانی:', 'homaye-tabesh') . '</h4>';
+            echo '<ul>';
+            foreach ($report['errors'] as $error) {
+                echo '<li style="color: #dc3232;">❌ ' . esc_html($error) . '</li>';
+            }
+            echo '</ul>';
+        }
+
+        if (!empty($report['warnings'])) {
+            echo '<h4>' . esc_html__('هشدارها:', 'homaye-tabesh') . '</h4>';
+            echo '<ul>';
+            foreach ($report['warnings'] as $warning) {
+                echo '<li style="color: #f0ad4e;">⚠️ ' . esc_html($warning) . '</li>';
+            }
+            echo '</ul>';
+        }
+
+        if (!empty($report['recommendations'])) {
+            echo '<h4>' . esc_html__('توصیه‌ها:', 'homaye-tabesh') . '</h4>';
+            echo '<ul>';
+            foreach ($report['recommendations'] as $rec) {
+                echo '<li>💡 ' . esc_html($rec) . '</li>';
+            }
+            echo '</ul>';
+        }
+
+        // Show summary of checks
+        echo '<details style="margin-top: 10px;">';
+        echo '<summary style="cursor: pointer;"><strong>' . esc_html__('جزئیات بررسی سلامت', 'homaye-tabesh') . '</strong></summary>';
+        echo '<ul style="margin-top: 10px;">';
+        foreach ($report['checks'] as $check) {
+            $check_icon = $check['status'] === 'pass' ? '✅' : ($check['status'] === 'fail' ? '❌' : '⚠️');
+            echo '<li>' . esc_html($check_icon) . ' <strong>' . esc_html($check['name']) . ':</strong> ' . esc_html($check['message']) . '</li>';
+        }
+        echo '</ul>';
+        echo '</details>';
+
+        echo '</div>';
     }
 }

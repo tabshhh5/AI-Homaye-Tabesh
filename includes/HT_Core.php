@@ -297,6 +297,11 @@ final class HT_Core
     public ?HT_Console_Analytics_API $console_api = null;
 
     /**
+     * Health Check API - REST API health monitoring
+     */
+    public ?HT_Health_Check_API $health_api = null;
+
+    /**
      * Get singleton instance
      *
      * @return self
@@ -443,6 +448,9 @@ final class HT_Core
         // Initialize PR19 - Super Console (Homa Control Center)
         $this->system_diagnostics = $this->safe_init(fn() => new HT_System_Diagnostics(), 'HT_System_Diagnostics');
         $this->console_api = $this->safe_init(fn() => new HT_Console_Analytics_API(), 'HT_Console_Analytics_API');
+
+        // Initialize Health Check API for system monitoring
+        $this->health_api = $this->safe_init(fn() => new HT_Health_Check_API(), 'HT_Health_Check_API');
 
         // Initialize default knowledge base on first load
         $this->safe_call(fn() => add_action('init', [$this->knowledge, 'init_default_knowledge_base']), 'kb_init_hook');
@@ -664,6 +672,17 @@ final class HT_Core
                     }
                 }
                 
+                // Display activation health report if available
+                $health_report = get_transient('homa_activation_health_report');
+                if ($health_report && is_array($health_report)) {
+                    add_action('admin_notices', function() use ($health_report) {
+                        if (class_exists('\HomayeTabesh\HT_Activator')) {
+                            \HomayeTabesh\HT_Activator::display_health_report($health_report);
+                        }
+                    });
+                    delete_transient('homa_activation_health_report');
+                }
+                
                 // Check if API key is configured (show notice once per user)
                 $user_id = get_current_user_id();
                 if ($user_id && !get_user_meta($user_id, 'homa_api_key_notice_dismissed', true)) {
@@ -696,6 +715,7 @@ final class HT_Core
             if ($this->security_alerts) add_action('rest_api_init', [$this->security_alerts, 'register_endpoints']); // PR15
             if ($this->access_control) add_action('rest_api_init', [$this->access_control, 'register_endpoints']); // PR16
             if ($this->resilience_api) add_action('rest_api_init', [$this->resilience_api, 'register_endpoints']); // PR18
+            if ($this->health_api) add_action('rest_api_init', [$this->health_api, 'register_endpoints']); // Health Check API
         }, 'rest_api_hooks');
         
         // Initialize Vault REST API (PR7)
@@ -703,6 +723,9 @@ final class HT_Core
 
         // تزریق اسکریپتهای ردیاب به فرانتئند (سازگار با Divi)
         $this->safe_call(function() {
+            // Enqueue error handler first (highest priority)
+            add_action('wp_enqueue_scripts', [$this, 'enqueue_error_handler'], 1);
+            
             if ($this->eyes) add_action('wp_enqueue_scripts', [$this->eyes, 'enqueue_tracker']);
             add_action('wp_enqueue_scripts', [$this, 'enqueue_ui_executor']);
             add_action('wp_enqueue_scripts', [$this, 'enqueue_vault_scripts']);
@@ -741,6 +764,29 @@ final class HT_Core
             [],
             HT_VERSION
         );
+    }
+
+    /**
+     * Enqueue error handler (loads first to catch all errors)
+     *
+     * @return void
+     */
+    public function enqueue_error_handler(): void
+    {
+        wp_enqueue_script(
+            'homaye-tabesh-error-handler',
+            HT_PLUGIN_URL . 'assets/js/homa-error-handler.js',
+            [], // No dependencies - must load first
+            HT_VERSION,
+            false // Load in head, not footer
+        );
+
+        // Provide configuration
+        wp_localize_script('homaye-tabesh-error-handler', 'homaConfig', [
+            'restUrl' => rest_url(),
+            'nonce' => wp_create_nonce('wp_rest'),
+            'debug' => defined('WP_DEBUG') && WP_DEBUG,
+        ]);
     }
 
     /**
