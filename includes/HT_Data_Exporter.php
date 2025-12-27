@@ -455,7 +455,9 @@ class HT_Data_Exporter
             return [];
         }
 
-        return $wpdb->get_results("SELECT * FROM {$table} WHERE is_active = 1", ARRAY_A) ?: [];
+        // Use backticks for table name safety and prepare for consistency
+        $query = "SELECT * FROM `{$wpdb->prefix}homa_authority_overrides` WHERE is_active = 1";
+        return $wpdb->get_results($query, ARRAY_A) ?: [];
     }
 
     /**
