@@ -13,73 +13,180 @@
          * Initialize the orchestrator
          */
         init: function() {
-            if (this.initialized) {
-                return;
-            }
+            try {
+                if (this.initialized) {
+                    console.log('[Homa Orchestrator] Already initialized');
+                    return;
+                }
 
-            this.setupGlobalWrapper();
-            this.setupEventListeners();
-            this.initialized = true;
-            
-            console.log('[Homa Orchestrator] Initialized');
+                console.log('[Homa Orchestrator] Starting initialization...');
+
+                this.setupGlobalWrapper();
+                this.setupEventListeners();
+                this.initialized = true;
+                
+                console.log('[Homa Orchestrator] Initialized successfully');
+            } catch (error) {
+                console.error('[Homa Orchestrator] Initialization failed:', error);
+                
+                // Try minimal initialization
+                try {
+                    this.createFallbackSidebar();
+                    this.setupEventListeners();
+                    this.initialized = true;
+                    console.log('[Homa Orchestrator] Fallback initialization completed');
+                } catch (fallbackError) {
+                    console.error('[Homa Orchestrator] Even fallback init failed:', fallbackError);
+                }
+                
+                // Report error if handler available
+                if (window.Homa && window.Homa.reportError) {
+                    window.Homa.reportError(error, { component: 'orchestrator', method: 'init' });
+                }
+            }
         },
 
         /**
          * Setup the global wrapper structure
          */
         setupGlobalWrapper: function() {
-            // Check if wrapper already exists
-            if (document.getElementById('homa-global-wrapper')) {
-                return;
+            try {
+                // Check if wrapper already exists
+                if (document.getElementById('homa-global-wrapper')) {
+                    console.log('[Homa Orchestrator] Global wrapper already exists');
+                    return;
+                }
+
+                // Verify body element exists
+                if (!document.body) {
+                    console.error('[Homa Orchestrator] Document body not available');
+                    return;
+                }
+
+                // Create wrapper
+                const wrapper = document.createElement('div');
+                wrapper.id = 'homa-global-wrapper';
+
+                // Create site view (will contain the Divi content)
+                const siteView = document.createElement('div');
+                siteView.id = 'homa-site-view';
+
+                // Create sidebar view (will contain React app)
+                const sidebarView = document.createElement('div');
+                sidebarView.id = 'homa-sidebar-view';
+
+                // Move body content into site view safely
+                try {
+                    while (document.body.firstChild) {
+                        siteView.appendChild(document.body.firstChild);
+                    }
+                } catch (moveError) {
+                    console.error('[Homa Orchestrator] Error moving body content:', moveError);
+                    // If moving fails, continue anyway - sidebar will still work
+                }
+
+                // Assemble structure
+                wrapper.appendChild(siteView);
+                wrapper.appendChild(sidebarView);
+                document.body.appendChild(wrapper);
+
+                // Set body styles safely
+                try {
+                    document.body.style.margin = '0';
+                    document.body.style.padding = '0';
+                    document.body.style.overflow = 'hidden';
+                } catch (styleError) {
+                    console.warn('[Homa Orchestrator] Could not apply body styles:', styleError);
+                }
+
+                console.log('[Homa Orchestrator] Global wrapper structure created successfully');
+            } catch (error) {
+                console.error('[Homa Orchestrator] Failed to setup global wrapper:', error);
+                
+                // Fail-safe: Create minimal sidebar container
+                this.createFallbackSidebar();
+                
+                // Report error if handler is available
+                if (window.Homa && window.Homa.reportError) {
+                    window.Homa.reportError(error, { component: 'orchestrator', method: 'setupGlobalWrapper' });
+                }
             }
+        },
 
-            // Create wrapper
-            const wrapper = document.createElement('div');
-            wrapper.id = 'homa-global-wrapper';
+        /**
+         * Create fallback sidebar container if main setup fails
+         */
+        createFallbackSidebar: function() {
+            try {
+                // Check if sidebar already exists
+                if (document.getElementById('homa-sidebar-view')) {
+                    return;
+                }
 
-            // Create site view (will contain the Divi content)
-            const siteView = document.createElement('div');
-            siteView.id = 'homa-site-view';
-
-            // Create sidebar view (will contain React app)
-            const sidebarView = document.createElement('div');
-            sidebarView.id = 'homa-sidebar-view';
-
-            // Move body content into site view
-            while (document.body.firstChild) {
-                siteView.appendChild(document.body.firstChild);
+                console.log('[Homa Orchestrator] Creating fallback sidebar container');
+                
+                // Create minimal sidebar
+                const sidebar = document.createElement('div');
+                sidebar.id = 'homa-sidebar-view';
+                sidebar.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    right: -400px;
+                    width: 400px;
+                    height: 100vh;
+                    background: white;
+                    z-index: 999999;
+                    transition: right 0.3s ease;
+                    box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+                `;
+                
+                document.body.appendChild(sidebar);
+                console.log('[Homa Orchestrator] Fallback sidebar created');
+            } catch (fallbackError) {
+                console.error('[Homa Orchestrator] Even fallback sidebar creation failed:', fallbackError);
             }
-
-            // Assemble structure
-            wrapper.appendChild(siteView);
-            wrapper.appendChild(sidebarView);
-            document.body.appendChild(wrapper);
-
-            // Set body styles
-            document.body.style.margin = '0';
-            document.body.style.padding = '0';
-            document.body.style.overflow = 'hidden';
         },
 
         /**
          * Setup event listeners
          */
         setupEventListeners: function() {
-            // Listen for toggle events
-            document.addEventListener('homa:open-sidebar', () => {
-                this.openSidebar();
-            });
+            try {
+                // Listen for toggle events
+                document.addEventListener('homa:open-sidebar', () => {
+                    try {
+                        this.openSidebar();
+                    } catch (error) {
+                        console.error('[Homa Orchestrator] Error opening sidebar:', error);
+                    }
+                });
 
-            document.addEventListener('homa:close-sidebar', () => {
-                this.closeSidebar();
-            });
+                document.addEventListener('homa:close-sidebar', () => {
+                    try {
+                        this.closeSidebar();
+                    } catch (error) {
+                        console.error('[Homa Orchestrator] Error closing sidebar:', error);
+                    }
+                });
 
-            document.addEventListener('homa:toggle-sidebar', () => {
-                this.toggleSidebar();
-            });
+                document.addEventListener('homa:toggle-sidebar', () => {
+                    try {
+                        this.toggleSidebar();
+                    } catch (error) {
+                        console.error('[Homa Orchestrator] Error toggling sidebar:', error);
+                    }
+                });
 
-            // Listen for form changes on the site
-            this.setupFormObserver();
+                // Listen for form changes on the site
+                this.setupFormObserver();
+                
+                console.log('[Homa Orchestrator] Event listeners registered');
+            } catch (error) {
+                console.error('[Homa Orchestrator] Error setting up event listeners:', error);
+                if (window.Homa && window.Homa.reportError) {
+                    window.Homa.reportError(error, { component: 'orchestrator', method: 'setupEventListeners' });
+                }
+            }
         },
 
         /**
