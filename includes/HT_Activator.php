@@ -192,6 +192,93 @@ class HT_Activator
 
             dbDelta($sql);
 
+            // Create Legacy Leads table (for backward compatibility)
+            // Note: This maintains compatibility with older versions that used homaye_leads
+            // The new table homa_leads (created above) is the primary table going forward
+            $table_name = $wpdb->prefix . 'homaye_leads';
+
+            $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                user_id bigint(20) DEFAULT NULL,
+                user_identifier varchar(100) NOT NULL,
+                lead_score int(11) DEFAULT 0,
+                lead_status varchar(50) DEFAULT 'new',
+                contact_info varchar(100) DEFAULT NULL,
+                contact_name varchar(100) DEFAULT NULL,
+                created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+                updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                KEY user_id (user_id),
+                KEY user_identifier (user_identifier),
+                KEY lead_score (lead_score),
+                KEY created_at (created_at)
+            ) $charset_collate;";
+
+            dbDelta($sql);
+
+            // Create AI Requests Analytics table (PR21)
+            $table_name = $wpdb->prefix . 'homaye_ai_requests';
+
+            $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+                id mediumint(9) NOT NULL AUTO_INCREMENT,
+                request_type varchar(50) NOT NULL,
+                user_identifier varchar(100) DEFAULT NULL,
+                prompt_text text DEFAULT NULL,
+                response_text text DEFAULT NULL,
+                tokens_used int(11) DEFAULT 0,
+                latency_ms int(11) DEFAULT 0,
+                status varchar(20) DEFAULT 'success',
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                KEY request_type (request_type),
+                KEY user_identifier (user_identifier),
+                KEY status (status),
+                KEY created_at (created_at)
+            ) $charset_collate;";
+
+            dbDelta($sql);
+
+            // Create Knowledge Base table (PR21)
+            $table_name = $wpdb->prefix . 'homaye_knowledge';
+
+            $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                fact_key varchar(100) NOT NULL,
+                fact_value text NOT NULL,
+                fact_category varchar(50) DEFAULT 'general',
+                authority_level int(11) DEFAULT 0,
+                source varchar(100) DEFAULT 'system',
+                is_active tinyint(1) DEFAULT 1,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY fact_key (fact_key),
+                KEY fact_category (fact_category),
+                KEY is_active (is_active),
+                KEY authority_level (authority_level)
+            ) $charset_collate;";
+
+            dbDelta($sql);
+
+            // Create Security Scores table (PR21)
+            $table_name = $wpdb->prefix . 'homaye_security_scores';
+
+            $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                user_identifier varchar(100) NOT NULL,
+                threat_score int(11) DEFAULT 0,
+                last_threat_type varchar(50) DEFAULT NULL,
+                blocked_attempts int(11) DEFAULT 0,
+                last_activity datetime DEFAULT CURRENT_TIMESTAMP,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY user_identifier (user_identifier),
+                KEY threat_score (threat_score),
+                KEY last_activity (last_activity)
+            ) $charset_collate;";
+
+            dbDelta($sql);
+
             // Create OTP verification table (PR11)
             $table_name = $wpdb->prefix . 'homa_otp';
 
@@ -281,6 +368,10 @@ class HT_Activator
                 $optimizer = new HT_Query_Optimizer();
                 $optimizer->add_indexes();
             }
+            
+            // Set database version for future migrations
+            update_option('homa_db_version', HT_VERSION);
+            update_option('homa_db_last_update', current_time('mysql'));
             
             \HomayeTabesh\HT_Error_Handler::log_error('Database tables created successfully', 'activation');
         } catch (\Throwable $e) {

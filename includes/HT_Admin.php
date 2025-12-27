@@ -141,6 +141,23 @@ class HT_Admin
             'default' => HT_GeoLocation_Service::get_default_arabic_countries(),
         ]);
 
+        // Knowledge Base indexing settings (PR21)
+        register_setting('homaye_tabesh_settings', 'ht_index_post_types', [
+            'type' => 'array',
+            'default' => ['post', 'page', 'product'],
+            'sanitize_callback' => function($value) {
+                if (!is_array($value)) {
+                    return ['post', 'page', 'product'];
+                }
+                return array_map('sanitize_text_field', $value);
+            },
+        ]);
+
+        register_setting('homaye_tabesh_settings', 'ht_auto_index_enabled', [
+            'type' => 'boolean',
+            'default' => true,
+        ]);
+
         // Add settings section
         add_settings_section(
             'ht_main_section',
@@ -181,6 +198,23 @@ class HT_Admin
             'homaye-tabesh',
             'ht_main_section'
         );
+
+        // Knowledge Base indexing fields (PR21)
+        add_settings_field(
+            'ht_auto_index_enabled',
+            __('ایندکس خودکار محتوا', 'homaye-tabesh'),
+            [$this, 'render_auto_index_field'],
+            'homaye-tabesh',
+            'ht_main_section'
+        );
+
+        add_settings_field(
+            'ht_index_post_types',
+            __('نوع محتوای قابل ایندکس', 'homaye-tabesh'),
+            [$this, 'render_index_post_types_field'],
+            'homaye-tabesh',
+            'ht_main_section'
+        );
     }
 
     /**
@@ -190,17 +224,80 @@ class HT_Admin
     {
         $value = get_option('ht_gemini_api_key', '');
         ?>
-        <input type="text" 
-               id="ht_gemini_api_key" 
-               name="ht_gemini_api_key" 
-               value="<?php echo esc_attr($value); ?>" 
-               class="regular-text"
-               placeholder="AIza...">
-        <p class="description">
-            کلید API خود را از 
-            <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a> 
-            دریافت کنید.
-        </p>
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <div style="flex: 1;">
+                <input type="text" 
+                       id="ht_gemini_api_key" 
+                       name="ht_gemini_api_key" 
+                       value="<?php echo esc_attr($value); ?>" 
+                       class="regular-text"
+                       placeholder="AIza...">
+                <p class="description">
+                    کلید API خود را از 
+                    <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a> 
+                    دریافت کنید.
+                </p>
+            </div>
+            <?php if (!empty($value)): ?>
+            <button type="button" 
+                    id="test-gemini-connection" 
+                    class="button button-secondary"
+                    style="white-space: nowrap;">
+                🔍 تست اتصال
+            </button>
+            <?php endif; ?>
+        </div>
+        <div id="test-connection-result" style="margin-top: 10px;"></div>
+        <script>
+        jQuery(document).ready(function($) {
+            $('#test-gemini-connection').on('click', function() {
+                var button = $(this);
+                var result = $('#test-connection-result');
+                
+                button.prop('disabled', true).text('در حال تست...');
+                result.html('<div class="notice notice-info inline"><p>در حال اتصال به Gemini API...</p></div>');
+                
+                $.ajax({
+                    url: '<?php echo esc_url(rest_url('homaye/v1/test-gemini')); ?>',
+                    method: 'POST',
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader('X-WP-Nonce', '<?php echo wp_create_nonce('wp_rest'); ?>');
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            result.html(
+                                '<div class="notice notice-success inline"><p>' +
+                                '<strong>✅ موفق:</strong> ' + response.message +
+                                '<br><small>زمان پاسخ: ' + response.data.duration_ms + ' میلی‌ثانیه</small>' +
+                                '</p></div>'
+                            );
+                        } else {
+                            result.html(
+                                '<div class="notice notice-error inline"><p>' +
+                                '<strong>❌ خطا:</strong> ' + response.message +
+                                (response.error ? '<br><small>' + response.error + '</small>' : '') +
+                                '</p></div>'
+                            );
+                        }
+                    },
+                    error: function(xhr) {
+                        var errorMsg = 'خطای ارتباطی با سرور';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                        }
+                        result.html(
+                            '<div class="notice notice-error inline"><p>' +
+                            '<strong>❌ خطا:</strong> ' + errorMsg +
+                            '</p></div>'
+                        );
+                    },
+                    complete: function() {
+                        button.prop('disabled', false).text('🔍 تست اتصال');
+                    }
+                });
+            });
+        });
+        </script>
         <?php
     }
 
@@ -254,6 +351,53 @@ class HT_Admin
                step="10">
         <p class="description">
             حداقل امتیازی که یک کاربر باید کسب کند تا پرسونا شناسایی شود.
+        </p>
+        <?php
+    }
+
+    /**
+     * Render auto index field (PR21)
+     */
+    public function render_auto_index_field(): void
+    {
+        $value = get_option('ht_auto_index_enabled', true);
+        ?>
+        <label>
+            <input type="checkbox" 
+                   name="ht_auto_index_enabled" 
+                   value="1" 
+                   <?php checked($value); ?>>
+            ایندکس خودکار محتوای جدید برای استفاده در هوش مصنوعی
+        </label>
+        <p class="description">
+            محتوای جدید به صورت خودکار در پایگاه دانش هوش مصنوعی ایندکس می‌شود.
+        </p>
+        <?php
+    }
+
+    /**
+     * Render index post types field (PR21)
+     */
+    public function render_index_post_types_field(): void
+    {
+        $selected = get_option('ht_index_post_types', ['post', 'page', 'product']);
+        $post_types = get_post_types(['public' => true], 'objects');
+        
+        ?>
+        <fieldset>
+            <?php foreach ($post_types as $post_type): ?>
+                <label style="display: block; margin-bottom: 8px;">
+                    <input type="checkbox" 
+                           name="ht_index_post_types[]" 
+                           value="<?php echo esc_attr($post_type->name); ?>"
+                           <?php checked(in_array($post_type->name, $selected)); ?>>
+                    <?php echo esc_html($post_type->label); ?> 
+                    <small>(<?php echo esc_html($post_type->name); ?>)</small>
+                </label>
+            <?php endforeach; ?>
+        </fieldset>
+        <p class="description">
+            انواع محتوایی که می‌خواهید برای استفاده هوش مصنوعی ایندکس شوند را انتخاب کنید.
         </p>
         <?php
     }

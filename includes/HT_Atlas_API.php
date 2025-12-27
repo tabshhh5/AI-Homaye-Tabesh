@@ -92,6 +92,13 @@ class HT_Atlas_API
             'callback' => [$this, 'get_translation_report'],
             'permission_callback' => [$this, 'check_admin_permission'],
         ]);
+
+        // Test Gemini API Connection (PR21)
+        register_rest_route('homaye/v1', '/test-gemini', [
+            'methods' => 'POST',
+            'callback' => [$this, 'test_gemini_connection'],
+            'permission_callback' => [$this, 'check_administrator_permission'],
+        ]);
     }
 
     /**
@@ -192,7 +199,11 @@ class HT_Atlas_API
                     'active_users_7d' => (int)$active_users,
                     'total_events' => (int)$total_events,
                 ],
-                'insights' => $this->generate_health_insights($conversion_rate, $active_users, $health_score),
+                'insights' => $this->generate_health_insights(
+                    $conversion_rate, 
+                    (int)($active_users ?? 0), // Cast to int to ensure type safety
+                    $health_score
+                ),
                 'timestamp' => current_time('mysql'),
             ]
         ], 200);
@@ -798,5 +809,58 @@ class HT_Atlas_API
                 ],
             ],
         ], 200);
+    }
+
+    /**
+     * Test Gemini API connection (PR21)
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     */
+    public function test_gemini_connection(\WP_REST_Request $request): \WP_REST_Response
+    {
+        try {
+            // Get Gemini client
+            if (!class_exists('\HomayeTabesh\HT_Gemini_Client')) {
+                return new \WP_REST_Response([
+                    'success' => false,
+                    'message' => 'کلاس Gemini Client یافت نشد.',
+                ], 500);
+            }
+
+            $gemini = new \HomayeTabesh\HT_Gemini_Client();
+            
+            // Send test prompt
+            $test_prompt = "سلام! این یک تست اتصال است. لطفاً با یک جمله کوتاه پاسخ دهید.";
+            
+            $start_time = microtime(true);
+            $response = $gemini->generate_response($test_prompt);
+            $duration = round((microtime(true) - $start_time) * 1000); // milliseconds
+            
+            if ($response['success']) {
+                return new \WP_REST_Response([
+                    'success' => true,
+                    'message' => 'اتصال به Gemini API با موفقیت برقرار شد! ✅',
+                    'data' => [
+                        'response_preview' => mb_substr($response['response'] ?? '', 0, 100) . '...',
+                        'duration_ms' => $duration,
+                        'model' => 'gemini-2.0-flash-exp',
+                        'timestamp' => current_time('mysql'),
+                    ],
+                ], 200);
+            } else {
+                return new \WP_REST_Response([
+                    'success' => false,
+                    'message' => 'خطا در اتصال به Gemini API',
+                    'error' => $response['error'] ?? 'خطای نامشخص',
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'خطای سیستمی',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

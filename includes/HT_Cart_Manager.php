@@ -112,7 +112,7 @@ class HT_Cart_Manager
                 'discount_value' => [
                     'required' => true,
                     'type' => 'number',
-                    'sanitize_callback' => 'floatval'
+                    'sanitize_callback' => function($param) { return floatval($param); }
                 ],
                 'reason' => [
                     'required' => false,

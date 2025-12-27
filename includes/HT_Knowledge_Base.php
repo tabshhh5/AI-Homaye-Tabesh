@@ -402,6 +402,116 @@ class HT_Knowledge_Base
     }
 
     /**
+     * Get facts from knowledge base
+     * Returns facts as an array for use by AI or other components
+     *
+     * @param string|null $category Filter by category (optional)
+     * @param bool $active_only Return only active facts (default: true)
+     * @return array Facts array
+     */
+    public function get_facts(?string $category = null, bool $active_only = true): array
+    {
+        global $wpdb;
+        
+        // Check if database table exists first
+        $table_name = $wpdb->prefix . 'homaye_knowledge';
+        
+        // Use WordPress function to check if table exists
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            // Table doesn't exist, return empty array
+            return [];
+        }
+        
+        $where = [];
+        $where_values = [];
+        
+        if ($active_only) {
+            $where[] = 'is_active = %d';
+            $where_values[] = 1;
+        }
+        
+        if ($category !== null) {
+            $where[] = 'fact_category = %s';
+            $where_values[] = $category;
+        }
+        
+        $where_clause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+        
+        $query = "SELECT * FROM $table_name $where_clause ORDER BY authority_level DESC, created_at DESC";
+        
+        if (!empty($where_values)) {
+            $query = $wpdb->prepare($query, ...$where_values);
+        }
+        
+        $results = $wpdb->get_results($query, ARRAY_A);
+        
+        if (!$results) {
+            return [];
+        }
+        
+        // Convert to key-value array
+        $facts = [];
+        foreach ($results as $row) {
+            $facts[$row['fact_key']] = [
+                'value' => $row['fact_value'],
+                'category' => $row['fact_category'],
+                'authority_level' => (int) $row['authority_level'],
+                'source' => $row['source'],
+            ];
+        }
+        
+        return $facts;
+    }
+
+    /**
+     * Save a fact to the knowledge base database
+     *
+     * @param string $key Fact key (unique identifier)
+     * @param string $value Fact value
+     * @param string $category Fact category
+     * @param int $authority_level Authority level (0-100, higher = more authoritative)
+     * @param string $source Source of the fact
+     * @return bool Success status
+     */
+    public function save_fact(string $key, string $value, string $category = 'general', int $authority_level = 0, string $source = 'system'): bool
+    {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'homaye_knowledge';
+        
+        // Check if table exists
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            // Table doesn't exist yet
+            return false;
+        }
+        
+        // Use INSERT ... ON DUPLICATE KEY UPDATE for upsert
+        $result = $wpdb->replace(
+            $table_name,
+            [
+                'fact_key' => $key,
+                'fact_value' => $value,
+                'fact_category' => $category,
+                'authority_level' => $authority_level,
+                'source' => $source,
+                'is_active' => 1,
+                'updated_at' => current_time('mysql'),
+            ],
+            [
+                '%s', // fact_key
+                '%s', // fact_value
+                '%s', // fact_category
+                '%d', // authority_level
+                '%s', // source
+                '%d', // is_active
+                '%s', // updated_at
+            ]
+        );
+        
+        return $result !== false;
+    }
+
+    /**
      * Initialize default knowledge base files
      *
      * @return void

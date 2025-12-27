@@ -225,6 +225,34 @@ class HT_Gemini_Client
     }
     
     /**
+     * Generate simple response (legacy method for backward compatibility)
+     * This is an alias for generate_content with simpler parameters
+     *
+     * @param string $prompt User prompt
+     * @param array $context Additional context data (optional)
+     * @return array Response data with 'response' key
+     */
+    public function generate_response(string $prompt, array $context = []): array
+    {
+        $result = $this->generate_content($prompt, $context);
+        
+        // Ensure response has 'response' key for backward compatibility
+        if ($result['success'] && !isset($result['response'])) {
+            if (isset($result['raw_text'])) {
+                $result['response'] = $result['raw_text'];
+            } elseif (isset($result['data']['message'])) {
+                $result['response'] = $result['data']['message'];
+            } else {
+                $result['response'] = 'متأسفانه پاسخی دریافت نشد.';
+            }
+        } elseif (!$result['success']) {
+            $result['response'] = $result['data']['message'] ?? 'خطا در دریافت پاسخ';
+        }
+        
+        return $result;
+    }
+
+    /**
      * Get user identifier for tracking
      *
      * @return string User identifier
