@@ -16,6 +16,3 @@ document.addEventListener('DOMContentLoaded', () => {
         root.render(<SecurityCenter />);
     }
 });
-
-// Export for external use if needed
-window.HomaSecurityCenter = { SecurityCenter };

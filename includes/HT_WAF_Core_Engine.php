@@ -127,6 +127,21 @@ class HT_WAF_Core_Engine
             'permission_callback' => function () {
                 return current_user_can('manage_options');
             },
+            'args' => [
+                'limit' => [
+                    'type' => 'integer',
+                    'default' => 50,
+                    'minimum' => 1,
+                    'maximum' => 100,
+                    'sanitize_callback' => 'absint',
+                ],
+                'offset' => [
+                    'type' => 'integer',
+                    'default' => 0,
+                    'minimum' => 0,
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
         ]);
 
         // Unblock IP
@@ -136,6 +151,16 @@ class HT_WAF_Core_Engine
             'permission_callback' => function () {
                 return current_user_can('manage_options');
             },
+            'args' => [
+                'ip' => [
+                    'type' => 'string',
+                    'required' => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => function ($value) {
+                        return filter_var($value, FILTER_VALIDATE_IP) !== false;
+                    },
+                ],
+            ],
         ]);
 
         // Block IP manually
@@ -145,6 +170,28 @@ class HT_WAF_Core_Engine
             'permission_callback' => function () {
                 return current_user_can('manage_options');
             },
+            'args' => [
+                'ip' => [
+                    'type' => 'string',
+                    'required' => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => function ($value) {
+                        return filter_var($value, FILTER_VALIDATE_IP) !== false;
+                    },
+                ],
+                'reason' => [
+                    'type' => 'string',
+                    'default' => 'Manual block by administrator',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'duration' => [
+                    'type' => 'integer',
+                    'default' => 24,
+                    'minimum' => 1,
+                    'maximum' => 720,
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
         ]);
     }
 
@@ -156,8 +203,8 @@ class HT_WAF_Core_Engine
      */
     public function rest_get_blacklist(\WP_REST_Request $request): \WP_REST_Response
     {
-        $limit = $request->get_param('limit') ?: 50;
-        $offset = $request->get_param('offset') ?: 0;
+        $limit = $request->get_param('limit') ?? 50;
+        $offset = $request->get_param('offset') ?? 0;
         
         $ips = $this->get_blacklisted_ips((int)$limit, (int)$offset);
         
@@ -178,13 +225,7 @@ class HT_WAF_Core_Engine
     {
         $ip = $request->get_param('ip');
         
-        if (empty($ip)) {
-            return new \WP_REST_Response([
-                'success' => false,
-                'message' => 'IP address is required'
-            ], 400);
-        }
-
+        // Validation already handled by register_rest_route args
         $result = $this->unblock_ip($ip);
         
         if ($result) {
@@ -195,7 +236,8 @@ class HT_WAF_Core_Engine
         } else {
             return new \WP_REST_Response([
                 'success' => false,
-                'message' => 'Failed to unblock IP'
+                'message' => 'Failed to unblock IP',
+                'code' => 'unblock_failed'
             ], 500);
         }
     }
@@ -209,16 +251,10 @@ class HT_WAF_Core_Engine
     public function rest_block_ip(\WP_REST_Request $request): \WP_REST_Response
     {
         $ip = $request->get_param('ip');
-        $reason = $request->get_param('reason') ?: 'Manual block by administrator';
-        $duration = $request->get_param('duration') ?: 24; // hours
+        $reason = $request->get_param('reason') ?? 'Manual block by administrator';
+        $duration = $request->get_param('duration') ?? 24;
         
-        if (empty($ip)) {
-            return new \WP_REST_Response([
-                'success' => false,
-                'message' => 'IP address is required'
-            ], 400);
-        }
-
+        // Validation already handled by register_rest_route args
         $result = $this->auto_block_ip($ip, $reason, (int)$duration);
         
         if ($result) {
@@ -229,7 +265,8 @@ class HT_WAF_Core_Engine
         } else {
             return new \WP_REST_Response([
                 'success' => false,
-                'message' => 'Failed to block IP'
+                'message' => 'Failed to block IP',
+                'code' => 'block_failed'
             ], 500);
         }
     }

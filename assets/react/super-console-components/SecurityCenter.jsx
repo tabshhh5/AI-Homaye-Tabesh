@@ -157,6 +157,9 @@ const SecurityCenter = () => {
         setNotification({ message, type });
     };
 
+    // UTF-8 BOM for proper Persian text encoding in CSV exports
+    const CSV_BOM = '\ufeff';
+
     const exportToCSV = (data, filename) => {
         if (!data || data.length === 0) {
             showNotification('داده‌ای برای export وجود ندارد', 'error');
@@ -176,8 +179,8 @@ const SecurityCenter = () => {
             )
         ].join('\n');
 
-        // Create blob and download
-        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        // Create blob and download with BOM for Persian text support
+        const blob = new Blob([CSV_BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
