@@ -31,6 +31,11 @@ class HT_Gemini_Client
     private const DEFAULT_MODEL = 'gpt-4o-mini';
 
     /**
+     * API request timeout in seconds
+     */
+    private const REQUEST_TIMEOUT = 30;
+
+    /**
      * API key
      */
     private string $api_key;
@@ -497,7 +502,7 @@ class HT_Gemini_Client
                 'Authorization' => 'Bearer ' . $this->api_key,
             ],
             'body' => wp_json_encode($payload),
-            'timeout' => 30,
+            'timeout' => self::REQUEST_TIMEOUT,
         ]);
 
         if (is_wp_error($response)) {
@@ -622,7 +627,7 @@ class HT_Gemini_Client
                 'Authorization' => 'Bearer ' . $this->api_key,
             ],
             'body' => wp_json_encode($openai_payload),
-            'timeout' => 30,
+            'timeout' => self::REQUEST_TIMEOUT,
         ]);
 
         if (is_wp_error($response)) {
@@ -691,7 +696,11 @@ class HT_Gemini_Client
      */
     private function convert_openai_to_gemini_format(array $openai_response): array
     {
-        if (!isset($openai_response['choices'][0]['message']['content'])) {
+        // Validate response structure
+        if (!isset($openai_response['choices']) || 
+            !is_array($openai_response['choices']) || 
+            empty($openai_response['choices']) ||
+            !isset($openai_response['choices'][0]['message']['content'])) {
             return $openai_response;
         }
         
