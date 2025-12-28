@@ -255,7 +255,7 @@ class HT_Parallel_UI
 
             return new \WP_REST_Response([
                 'success' => true,
-                'response' => $ai_response['response'] ?? $ai_response,
+                'response' => $ai_response['response'] ?? $ai_response['message'] ?? (is_string($ai_response) ? $ai_response : 'متأسفم، نتوانستم پاسخی تولید کنم.'),
                 'actions' => $actions,
                 'persona' => $ai_response['detected_persona'] ?? $persona
             ], 200);

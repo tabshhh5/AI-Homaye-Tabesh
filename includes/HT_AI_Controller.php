@@ -206,7 +206,7 @@ class HT_AI_Controller
 
         // Ensure consistent response format
         if (!isset($result['response'])) {
-            $result['response'] = $result['text'] ?? 'متأسفم، نتوانستم پاسخی تولید کنم.';
+            $result['response'] = $result['text'] ?? $result['message'] ?? 'متأسفم، نتوانستم پاسخی تولید کنم.';
         }
 
         return $result;

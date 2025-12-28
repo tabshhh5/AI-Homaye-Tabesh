@@ -243,9 +243,11 @@ class HT_Inference_Engine
      */
     private function get_error_response(string $error): array
     {
+        $message = 'متأسفانه در حال حاضر نمی‌توانم پاسخگوی شما باشم.';
         return [
             'success' => false,
-            'message' => 'متأسفانه در حال حاضر نمی‌توانم پاسخگوی شما باشم.',
+            'response' => $message,  // Add response key for consistency
+            'message' => $message,
             'error' => $error,
             'timestamp' => current_time('mysql'),
         ];

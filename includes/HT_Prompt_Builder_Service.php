@@ -148,7 +148,9 @@ IDENTITY;
                 $output .= "**$category:**\n";
                 foreach ($rules as $key => $value) {
                     if (is_array($value)) {
-                        $output .= "  - $key: " . implode(', ', $value) . "\n";
+                        // Handle nested arrays by converting to JSON or flattening
+                        $formatted_value = $this->format_array_value($value);
+                        $output .= "  - $key: $formatted_value\n";
                     } else {
                         $output .= "  - $key: $value\n";
                     }
@@ -158,6 +160,37 @@ IDENTITY;
         }
         
         return $output;
+    }
+
+    /**
+     * Format array value for display
+     * Handles nested arrays safely
+     *
+     * @param mixed $value Value to format
+     * @return string Formatted value
+     */
+    private function format_array_value($value): string
+    {
+        if (!is_array($value)) {
+            return (string) $value;
+        }
+        
+        // Check if array contains only scalar values
+        $has_only_scalars = true;
+        foreach ($value as $item) {
+            if (is_array($item) || is_object($item)) {
+                $has_only_scalars = false;
+                break;
+            }
+        }
+        
+        if ($has_only_scalars) {
+            // Simple array - join with commas
+            return implode(', ', array_map('strval', $value));
+        } else {
+            // Complex nested array - convert to JSON for safety
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
     }
 
     /**
