@@ -2,7 +2,7 @@
 /**
  * Plugin Name: همای تابش (Homaye Tabesh)
  * Plugin URI: https://github.com/tabshhh4-sketch/AI-Homaye-Tabesh
- * Description: هاب هوشمند هماهنگی، تصمیم‌گیری و راهنمایی تمام فرآیندهای کاربران وبسایت با استفاده از Gemini 2.5 Flash و ردیابی رفتاری کاربران در قالب Divi
+ * Description: هاب هوشمند هماهنگی، تصمیم‌گیری و راهنمایی تمام فرآیندهای کاربران وبسایت با استفاده از GapGPT API و دسترسی به مدل‌های متنوع هوش مصنوعی از ارائه‌دهندگان مختلف
  * Version: 1.0.0
  * Requires at least: 6.0
  * Requires PHP: 8.2

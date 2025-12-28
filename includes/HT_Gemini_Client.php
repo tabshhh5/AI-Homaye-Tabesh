@@ -1,7 +1,7 @@
 <?php
 /**
- * AI Client (Flexible)
- * Supports both Google Gemini Direct and GapGPT Gateway (OpenAI-compatible)
+ * AI Client (GapGPT Gateway)
+ * Uses GapGPT API for access to multiple AI models
  *
  * @package HomayeTabesh
  * @since 1.0.0
@@ -12,28 +12,18 @@ declare(strict_types=1);
 namespace HomayeTabesh;
 
 /**
- * موتور استنتاج هوش مصنوعی (انعطاف‌پذیر)
- * پشتیبانی از Gemini Direct و GapGPT Gateway
+ * موتور استنتاج هوش مصنوعی
+ * پشتیبانی از GapGPT API برای دسترسی به مدل‌های متنوع
  */
 class HT_Gemini_Client
 {
-    /**
-     * API base URL (Gemini Direct)
-     */
-    private const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
-
-    /**
-     * Model name (Gemini Direct - legacy)
-     */
-    private const GEMINI_MODEL_NAME = 'gemini-2.0-flash-exp';
-
     /**
      * API key
      */
     private string $api_key;
 
     /**
-     * Provider (gemini_direct or gapgpt)
+     * Provider (always gapgpt now)
      */
     private string $provider;
 
@@ -77,16 +67,11 @@ class HT_Gemini_Client
     private function load_config(): void
     {
         if (empty($this->provider) && function_exists('get_option')) {
-            $this->provider = get_option('ht_ai_provider', 'gemini_direct');
-            $this->model = get_option('ht_ai_model', 'gemini-2.0-flash');
+            // Always use GapGPT
+            $this->provider = 'gapgpt';
+            $this->model = get_option('ht_ai_model', 'gemini-2.5-flash');
             $this->base_url = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
-            
-            // Load appropriate API key based on provider
-            if ($this->provider === 'gapgpt') {
-                $this->api_key = get_option('ht_gapgpt_api_key', '');
-            } else {
-                $this->api_key = get_option('ht_gemini_api_key', '');
-            }
+            $this->api_key = get_option('ht_gapgpt_api_key', '');
         }
     }
 
@@ -232,7 +217,7 @@ class HT_Gemini_Client
                     'raw_response' => wp_json_encode($response),
                     'latency_ms' => $latency_ms,
                     'tokens_used' => $response['usageMetadata']['totalTokenCount'] ?? null,
-                    'model_name' => $this->provider === 'gapgpt' ? ($this->model ?? 'unknown') : self::GEMINI_MODEL_NAME,
+                    'model_name' => $this->model ?? 'unknown',
                     'context_data' => $context,
                     'status' => 'success',
                 ]);
@@ -245,7 +230,7 @@ class HT_Gemini_Client
 
             return $parsed_response;
         } catch (\Exception $e) {
-            error_log('Homaye Tabesh - Gemini API Error: ' . $e->getMessage());
+            error_log('Homaye Tabesh - GapGPT API Error: ' . $e->getMessage());
             
             // PR18: Log error to BlackBox
             if (class_exists('\HomayeTabesh\HT_BlackBox_Logger')) {
@@ -407,7 +392,7 @@ class HT_Gemini_Client
     }
 
     /**
-     * Make API request to configured provider
+     * Make API request to GapGPT
      *
      * @param array $payload Request payload
      * @return array Response data
@@ -418,15 +403,11 @@ class HT_Gemini_Client
         $this->load_config();
         
         if (empty($this->api_key)) {
-            throw new \Exception('API key not configured for ' . $this->provider);
+            throw new \Exception('API key not configured for GapGPT');
         }
 
-        // Build request based on provider
-        if ($this->provider === 'gapgpt') {
-            return $this->make_gapgpt_request($payload);
-        } else {
-            return $this->make_gemini_request($payload);
-        }
+        // Always use GapGPT
+        return $this->make_gapgpt_request($payload);
     }
 
     /**
@@ -554,89 +535,9 @@ class HT_Gemini_Client
         return $converted;
     }
 
-    /**
-     * Make request to Gemini Direct
-     *
-     * @param array $payload Request payload
-     * @return array Response data
-     * @throws \Exception
-     */
-    private function make_gemini_request(array $payload): array
-    {
-        $api_key = $this->api_key;
-        $url = self::GEMINI_API_BASE_URL . self::GEMINI_MODEL_NAME . ':generateContent?key=' . $api_key;
-
-        $response = wp_remote_post($url, [
-            'headers' => [
-                'Content-Type' => 'application/json',
-            ],
-            'body' => wp_json_encode($payload),
-            'timeout' => 30,
-        ]);
-
-        if (is_wp_error($response)) {
-            throw new \Exception($response->get_error_message());
-        }
-
-        $status_code = wp_remote_retrieve_response_code($response);
-        $body = wp_remote_retrieve_body($response);
-        
-        // Handle various API error codes gracefully
-        if ($status_code === 429) {
-            // Log the quota exceeded error
-            if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
-                \HomayeTabesh\HT_Error_Handler::log_error(
-                    'Gemini API Quota Exceeded (429). Switching to fallback mode.',
-                    'api_quota'
-                );
-            }
-            
-            // Return a structured error response instead of throwing exception
-            throw new \Exception('quota_exceeded:سهمیه روزانه API Gemini تمام شده است. لطفاً بعداً تلاش کنید.');
-        }
-        
-        if ($status_code === 401) {
-            throw new \Exception('auth_failed:کلید API نامعتبر است. لطفاً تنظیمات را بررسی کنید.');
-        }
-        
-        if ($status_code === 403) {
-            throw new \Exception('access_denied:دسترسی به API Gemini مسدود شده است. لطفاً تنظیمات API را بررسی کنید.');
-        }
-        
-        if ($status_code === 503) {
-            throw new \Exception('service_unavailable:سرویس Gemini موقتاً در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.');
-        }
-        
-        if ($status_code !== 200) {
-            // Try to parse error details from response body
-            $error_details = json_decode($body, true);
-            $error_message = 'API request failed';
-            
-            if (isset($error_details['error']['message'])) {
-                $error_message = $error_details['error']['message'];
-            }
-            
-            if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
-                \HomayeTabesh\HT_Error_Handler::log_error(
-                    "Gemini API Error ($status_code): $error_message",
-                    'api_error'
-                );
-            }
-            
-            throw new \Exception("API request failed with status $status_code: $error_message");
-        }
-
-        $data = json_decode($body, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \Exception('Failed to parse API response');
-        }
-
-        return $data;
-    }
 
     /**
-     * Parse Gemini API response
+     * Parse API response
      *
      * @param array $response Raw response
      * @return array Parsed data
@@ -796,7 +697,7 @@ class HT_Gemini_Client
 
             return $this->parse_response($response);
         } catch (\Exception $e) {
-            error_log('Homaye Tabesh - Gemini JSON Response Error: ' . $e->getMessage());
+            error_log('Homaye Tabesh - GapGPT JSON Response Error: ' . $e->getMessage());
             return $this->get_fallback_response($e->getMessage());
         }
     }

@@ -96,7 +96,7 @@ const SystemHealth = () => {
     }
 
     const diag = diagnostics || {
-        gemini_api: { status: 'unknown' },
+        gapgpt_api: { status: 'unknown' },
         tabesh_database: { status: 'unknown' },
         index_status: { status: 'unknown' },
         meli_payamak: { status: 'unknown' },
@@ -141,35 +141,35 @@ const SystemHealth = () => {
 
             {/* System Components Grid */}
             <div className="components-grid">
-                {/* Gemini API Status */}
+                {/* GapGPT API Status */}
                 <div className="component-card">
                     <div className="card-header">
                         <div className="component-icon">🧠</div>
-                        <h3>Gemini API</h3>
+                        <h3>GapGPT API</h3>
                         <div 
                             className="status-badge"
-                            style={{ background: getStatusColor(diag.gemini_api.status) }}
+                            style={{ background: getStatusColor(diag.gapgpt_api?.status || diag.gemini_api?.status || 'unknown') }}
                         >
-                            {getStatusIcon(diag.gemini_api.status)}
+                            {getStatusIcon(diag.gapgpt_api?.status || diag.gemini_api?.status || 'unknown')}
                         </div>
                     </div>
                     <div className="card-body">
                         <div className="status-details">
                             <div className="detail-row">
                                 <span className="label">وضعیت اتصال:</span>
-                                <span className="value">{diag.gemini_api.connection || 'نامشخص'}</span>
+                                <span className="value">{diag.gapgpt_api?.connection || diag.gemini_api?.connection || 'نامشخص'}</span>
                             </div>
                             <div className="detail-row">
                                 <span className="label">زمان پاسخ:</span>
-                                <span className="value">{diag.gemini_api.response_time || 'N/A'}</span>
+                                <span className="value">{diag.gapgpt_api?.response_time || diag.gemini_api?.response_time || 'N/A'}</span>
                             </div>
                             <div className="detail-row">
                                 <span className="label">مدل فعال:</span>
-                                <span className="value">{diag.gemini_api.model || 'gemini-2.5-flash'}</span>
+                                <span className="value">{diag.gapgpt_api?.model || diag.gemini_api?.model || 'gemini-2.5-flash'}</span>
                             </div>
                         </div>
-                        {diag.gemini_api.message && (
-                            <div className="status-message">{diag.gemini_api.message}</div>
+                        {(diag.gapgpt_api?.message || diag.gemini_api?.message) && (
+                            <div className="status-message">{diag.gapgpt_api?.message || diag.gemini_api?.message}</div>
                         )}
                     </div>
                 </div>

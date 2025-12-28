@@ -88,7 +88,7 @@ const SuperSettings = () => {
     };
 
     const sections = [
-        { id: 'core', name: '🧠 هسته (Core)', description: 'تنظیمات مدل Gemini و API' },
+        { id: 'core', name: '🧠 هسته (Core)', description: 'تنظیمات مدل هوش مصنوعی و GapGPT API' },
         { id: 'visual', name: '🎨 بصری و تعاملی', description: 'ظاهر چت و رفتار تعاملی' },
         { id: 'database', name: '🗄️ دیتابیس و ایندکس', description: 'پیکربندی تابش و ایندکسگذاری' },
         { id: 'modules', name: '🔌 ماژول‌ها', description: 'فعال/غیرفعال سازی قابلیت‌ها' },
@@ -155,26 +155,48 @@ const SuperSettings = () => {
                             <h2>🧠 تنظیمات هسته (Core Configuration)</h2>
                             
                             <div className="setting-group">
-                                <h3>مدل Gemini</h3>
-                                <div className="setting-item">
-                                    <label>نسخه API:</label>
-                                    <select 
-                                        value={config.core.gemini_version || 'v1beta'}
-                                        onChange={(e) => updateSetting('core', 'gemini_version', e.target.value)}
-                                    >
-                                        <option value="v1">v1 (Stable)</option>
-                                        <option value="v1beta">v1beta (Latest Features)</option>
-                                    </select>
+                                <h3>GapGPT API</h3>
+                                <div className="notice-box info">
+                                    <p>
+                                        <strong>GapGPT</strong> - دروازه یکپارچه به مدل‌های هوش مصنوعی<br/>
+                                        <small>دسترسی به مدل‌های متنوع از OpenAI، Google Gemini، Anthropic Claude، DeepSeek، XAI و بیشتر</small>
+                                    </p>
                                 </div>
                                 <div className="setting-item">
-                                    <label>مدل:</label>
+                                    <label>مدل هوش مصنوعی:</label>
                                     <select 
                                         value={config.core.model || 'gemini-2.5-flash'}
                                         onChange={(e) => updateSetting('core', 'model', e.target.value)}
                                     >
-                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (سریع)</option>
-                                        <option value="gemini-pro">Gemini Pro (دقیق)</option>
+                                        <optgroup label="Google Gemini">
+                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (توصیه شده)</option>
+                                            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                            <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
+                                        </optgroup>
+                                        <optgroup label="OpenAI">
+                                            <option value="gpt-4o">GPT-4o</option>
+                                            <option value="gpt-4o-mini">GPT-4o Mini</option>
+                                            <option value="o1">O1</option>
+                                            <option value="o1-mini">O1 Mini</option>
+                                            <option value="gpt-5">GPT-5</option>
+                                        </optgroup>
+                                        <optgroup label="Anthropic Claude">
+                                            <option value="claude-opus-4-5-20251101">Claude Opus 4.5</option>
+                                        </optgroup>
+                                        <optgroup label="DeepSeek">
+                                            <option value="deepseek-chat">DeepSeek Chat</option>
+                                            <option value="deepseek-reasoner">DeepSeek Reasoner</option>
+                                        </optgroup>
+                                        <optgroup label="XAI">
+                                            <option value="grok-3">Grok 3</option>
+                                            <option value="grok-3-mini">Grok 3 Mini</option>
+                                        </optgroup>
                                     </select>
+                                    <small className="description">
+                                        انتخاب مدل بر اساس نیاز به سرعت یا دقت. 
+                                        <a href="https://gapgpt.app/models" target="_blank">مشاهده قیمت‌ها →</a>
+                                    </small>
                                 </div>
                                 <div className="setting-item">
                                     <label>محدودیت توکن در هر ریکوئست:</label>
