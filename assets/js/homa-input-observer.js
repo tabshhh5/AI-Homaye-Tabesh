@@ -36,6 +36,10 @@
             this.observedInputs = new WeakSet();
             this.intentCallbacks = [];
             
+            // Mutation observer debounce
+            this.attachTimer = null;
+            this.attachDelay = 500; // 500ms debounce for attach observers
+            
             this.init();
         }
 
@@ -388,8 +392,16 @@
                 });
 
                 if (shouldAttach) {
-                    console.log('Homa Input Observer: Detected new inputs, attaching observers...');
-                    this.attachObservers();
+                    // Debounce the attach to avoid multiple rapid attachments
+                    if (this.attachTimer) {
+                        clearTimeout(this.attachTimer);
+                    }
+                    
+                    this.attachTimer = setTimeout(() => {
+                        console.log('Homa Input Observer: Detected new inputs, attaching observers...');
+                        this.attachObservers();
+                        this.attachTimer = null;
+                    }, this.attachDelay);
                 }
             });
 
@@ -398,7 +410,7 @@
                 subtree: true
             });
 
-            console.log('Homa Input Observer: Mutation observer active');
+            console.log('Homa Input Observer: Mutation observer active (with debouncing)');
         }
 
         /**

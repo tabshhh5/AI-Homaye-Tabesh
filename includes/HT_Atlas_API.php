@@ -531,13 +531,18 @@ class HT_Atlas_API
 
         $confidence = 100 - ($risk_level * 30); // Lower confidence for higher risk
 
+        // Calculate expected change with division by zero protection
+        $expected_change = $current_value > 0 
+            ? round((($predicted_value - $current_value) / $current_value) * 100, 2) 
+            : 0;
+
         return new \WP_REST_Response([
             'success' => true,
             'data' => [
                 'decision_type' => $decision_type,
                 'current_value' => $current_value,
                 'predicted_value' => round($predicted_value, 2),
-                'expected_change' => round((($predicted_value - $current_value) / $current_value) * 100, 2),
+                'expected_change' => $expected_change,
                 'confidence_level' => round($confidence, 2),
                 'risk_assessment' => $risk_level > 0.7 ? 'high' : ($risk_level > 0.4 ? 'medium' : 'low'),
                 'recommendation' => $this->generate_simulation_recommendation($risk_level, $predicted_value - $current_value),

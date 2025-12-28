@@ -253,7 +253,7 @@ class HT_Console_Analytics_API
         $filter = $request->get_param('filter') ?: 'all';
         
         $query = "SELECT DISTINCT u.ID, u.display_name, u.user_email as email, 
-                  COALESCE(s.current_score, 100) as security_score
+                  COALESCE(100 - s.threat_score, 100) as security_score
                   FROM {$wpdb->users} u
                   LEFT JOIN {$wpdb->prefix}homaye_security_scores s ON u.ID = s.user_id";
 
@@ -264,7 +264,7 @@ class HT_Console_Analytics_API
             $query .= " INNER JOIN {$wpdb->usermeta} um ON u.ID = um.user_id 
                        WHERE um.meta_key = 'wp_capabilities' AND um.meta_value LIKE '%editor%'";
         } elseif ($filter === 'suspicious') {
-            $query .= " WHERE s.current_score < 50";
+            $query .= " WHERE s.threat_score > 50";
         }
 
         $query .= " LIMIT 100";
@@ -294,11 +294,12 @@ class HT_Console_Analytics_API
             ], 404);
         }
 
-        // Get security score
-        $security_score = $wpdb->get_var($wpdb->prepare(
-            "SELECT current_score FROM {$wpdb->prefix}homaye_security_scores WHERE user_id = %d",
+        // Get security score (threat_score inverted to security_score)
+        $threat_score = $wpdb->get_var($wpdb->prepare(
+            "SELECT threat_score FROM {$wpdb->prefix}homaye_security_scores WHERE user_id = %d",
             $user_id
-        )) ?: 100;
+        ));
+        $security_score = $threat_score !== null ? (100 - (int)$threat_score) : 100;
 
         // Get conversation history
         $conversations = $wpdb->get_results($wpdb->prepare(

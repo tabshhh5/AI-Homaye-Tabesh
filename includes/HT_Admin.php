@@ -1311,7 +1311,7 @@ class HT_Admin
                         <?php foreach ($stats['top_events'] as $event): ?>
                             <tr>
                                 <td><?php echo esc_html($event['event_type']); ?></td>
-                                <td><strong><?php echo number_format($event['count']); ?></strong></td>
+                                <td><strong><?php echo number_format((float)$event['count']); ?></strong></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

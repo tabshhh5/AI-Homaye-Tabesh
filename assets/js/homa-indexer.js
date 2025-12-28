@@ -20,6 +20,9 @@
             this.observedElements = new WeakSet();
             // Use consistent config name
             this.config = window.homayePerceptionConfig || window.homayeConfig || {};
+            // Debounce timer for mutation observer
+            this.rescanTimer = null;
+            this.rescanDelay = 500; // 500ms debounce
             this.init();
         }
 
@@ -324,8 +327,16 @@
                 });
 
                 if (shouldRescan) {
-                    console.log('Homa Indexer: Detected dynamic content, rescanning...');
-                    this.scanPage();
+                    // Debounce the rescan to avoid multiple rapid rescans
+                    if (this.rescanTimer) {
+                        clearTimeout(this.rescanTimer);
+                    }
+                    
+                    this.rescanTimer = setTimeout(() => {
+                        console.log('Homa Indexer: Detected dynamic content, rescanning...');
+                        this.scanPage();
+                        this.rescanTimer = null;
+                    }, this.rescanDelay);
                 }
             });
 
@@ -334,7 +345,7 @@
                 subtree: true
             });
 
-            console.log('Homa Indexer: Mutation observer active for dynamic content');
+            console.log('Homa Indexer: Mutation observer active for dynamic content (with debouncing)');
         }
 
         /**

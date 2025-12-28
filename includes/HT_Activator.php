@@ -269,6 +269,7 @@ class HT_Activator
 
             $sql = "CREATE TABLE IF NOT EXISTS $table_name (
                 id bigint(20) NOT NULL AUTO_INCREMENT,
+                user_id bigint(20) DEFAULT NULL,
                 user_identifier varchar(100) NOT NULL,
                 threat_score int(11) DEFAULT 0,
                 last_threat_type varchar(50) DEFAULT NULL,
@@ -276,6 +277,7 @@ class HT_Activator
                 last_activity datetime DEFAULT CURRENT_TIMESTAMP,
                 created_at datetime DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY  (id),
+                KEY user_id (user_id),
                 UNIQUE KEY user_identifier (user_identifier),
                 KEY threat_score (threat_score),
                 KEY last_activity (last_activity)
@@ -388,22 +390,27 @@ class HT_Activator
             dbDelta($sql);
 
             // Create Knowledge Facts table (for console analytics)
+            // Note: Both 'fact' and 'fact_key'/'fact_value' columns exist for backward compatibility
+            // - 'fact' is the main column used by queries (text content)
+            // - 'fact_key'/'fact_value' are legacy columns kept for data migration
             $table_name = $wpdb->prefix . 'homaye_knowledge_facts';
 
             $sql = "CREATE TABLE IF NOT EXISTS $table_name (
                 id bigint(20) NOT NULL AUTO_INCREMENT,
-                fact_key varchar(100) NOT NULL,
-                fact_value text NOT NULL,
-                fact_category varchar(50) DEFAULT 'general',
+                fact text NOT NULL,
+                category varchar(50) DEFAULT 'general',
+                fact_key varchar(100) DEFAULT NULL,
+                fact_value text DEFAULT NULL,
                 authority_level int(11) DEFAULT 0,
                 source varchar(100) DEFAULT 'system',
                 is_active tinyint(1) DEFAULT 1,
                 verified tinyint(1) DEFAULT 0,
+                tags text DEFAULT NULL,
                 created_at datetime DEFAULT CURRENT_TIMESTAMP,
                 updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY  (id),
-                UNIQUE KEY fact_key (fact_key),
-                KEY fact_category (fact_category),
+                KEY category (category),
+                KEY fact_key (fact_key),
                 KEY is_active (is_active),
                 KEY verified (verified),
                 KEY authority_level (authority_level)
@@ -652,15 +659,18 @@ class HT_Activator
                 ],
                 'homaye_knowledge_facts' => [
                     'verified' => 'tinyint(1) DEFAULT 0',
-                    'fact_category' => 'varchar(50) DEFAULT \'general\'',
+                    'category' => 'varchar(50) DEFAULT \'general\'',
+                    'fact' => 'text DEFAULT NULL',
                     'is_active' => 'tinyint(1) DEFAULT 1',
+                    'tags' => 'text DEFAULT NULL',
                 ],
                 'homaye_knowledge' => [
                     'fact_category' => 'varchar(50) DEFAULT \'general\'',
                     'is_active' => 'tinyint(1) DEFAULT 1',
                 ],
                 'homaye_security_scores' => [
-                    'current_score' => 'int(11) DEFAULT 100',
+                    'user_id' => 'bigint(20) DEFAULT NULL',
+                    'threat_score' => 'int(11) DEFAULT 0',
                 ],
                 'homaye_user_behavior' => [
                     'current_score' => 'int(11) DEFAULT 100',
