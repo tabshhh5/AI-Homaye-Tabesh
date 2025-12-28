@@ -157,6 +157,47 @@ const SecurityCenter = () => {
         setNotification({ message, type });
     };
 
+    const exportToCSV = (data, filename) => {
+        if (!data || data.length === 0) {
+            showNotification('داده‌ای برای export وجود ندارد', 'error');
+            return;
+        }
+
+        // Convert data to CSV format
+        const headers = Object.keys(data[0]);
+        const csvContent = [
+            headers.join(','),
+            ...data.map(row => 
+                headers.map(header => {
+                    const value = row[header] || '';
+                    // Escape commas and quotes
+                    return `"${String(value).replace(/"/g, '""')}"`;
+                }).join(',')
+            )
+        ].join('\n');
+
+        // Create blob and download
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showNotification('گزارش با موفقیت دانلود شد', 'success');
+    };
+
+    const handleExportBlacklistedIps = () => {
+        exportToCSV(blacklistedIps, 'blacklisted_ips');
+    };
+
+    const handleExportRecentActivities = () => {
+        exportToCSV(recentActivities, 'security_activities');
+    };
+
     const handleUnblockIp = async (ipAddress) => {
         if (!confirm(`آیا از رفع مسدودیت ${ipAddress} مطمئن هستید؟`)) {
             return;
@@ -424,7 +465,14 @@ const SecurityCenter = () => {
 
                         {/* Blacklisted IPs Table */}
                         <div className="section-card">
-                            <h2>🚫 IPهای مسدود شده</h2>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                <h2 style={{ margin: 0 }}>🚫 IPهای مسدود شده</h2>
+                                {blacklistedIps.length > 0 && (
+                                    <button className="btn-secondary btn-small" onClick={handleExportBlacklistedIps}>
+                                        📥 Export CSV
+                                    </button>
+                                )}
+                            </div>
                             {blacklistedIps.length === 0 ? (
                                 <p className="empty-message">هیچ IP مسدود شده‌ای وجود ندارد.</p>
                             ) : (
@@ -464,7 +512,14 @@ const SecurityCenter = () => {
 
                         {/* Recent Suspicious Activities */}
                         <div className="section-card">
-                            <h2>⚠️ فعالیت‌های مشکوک اخیر (24 ساعت)</h2>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                <h2 style={{ margin: 0 }}>⚠️ فعالیت‌های مشکوک اخیر (24 ساعت)</h2>
+                                {recentActivities.length > 0 && (
+                                    <button className="btn-secondary btn-small" onClick={handleExportRecentActivities}>
+                                        📥 Export CSV
+                                    </button>
+                                )}
+                            </div>
                             {recentActivities.length === 0 ? (
                                 <p className="success-message">فعالیت مشکوکی در 24 ساعت اخیر ثبت نشده است. ✓</p>
                             ) : (
@@ -707,30 +762,262 @@ const SecurityCenter = () => {
                     </div>
                 )}
 
-                {/* Other tabs placeholders */}
+                {/* WAF Tab */}
                 {activeTab === 'waf' && (
                     <div className="waf-tab">
                         <div className="section-card">
                             <h2>🔥 فایروال وب اپلیکیشن (WAF)</h2>
-                            <p>محتوای تب فایروال - جزئیات و تنظیمات WAF</p>
+                            <p className="section-description">
+                                فایروال وب اپلیکیشن (WAF) لایه اول دفاعی هما گاردین است که تمام درخواست‌های HTTP را قبل از پردازش توسط وردپرس بررسی می‌کند.
+                            </p>
+
+                            <div className="info-grid">
+                                <div className="info-box">
+                                    <h3>🛡️ الگوهای تشخیص حمله</h3>
+                                    <ul className="feature-list">
+                                        <li><strong>SQL Injection:</strong> تشخیص الگوهای UNION SELECT, DROP TABLE, OR 1=1</li>
+                                        <li><strong>XSS (Cross-Site Scripting):</strong> فیلتر script tags, javascript:, onerror</li>
+                                        <li><strong>RCE (Remote Code Execution):</strong> جلوگیری از eval(), exec(), system()</li>
+                                        <li><strong>File Access:</strong> حفاظت از wp-config.php, .env, .git</li>
+                                    </ul>
+                                </div>
+
+                                <div className="info-box">
+                                    <h3>🎯 سیستم امتیازدهی تهدید (Threat Scoring)</h3>
+                                    <ul className="score-list">
+                                        <li>دسترسی به فایل‌های حساس: <strong style={{ color: '#d63638' }}>+80 امتیاز</strong></li>
+                                        <li>RCE Attempt: <strong style={{ color: '#d63638' }}>+80 امتیاز</strong></li>
+                                        <li>SQL Injection: <strong style={{ color: '#d63638' }}>+60 امتیاز</strong></li>
+                                        <li>XSS Attempt: <strong style={{ color: '#d63638' }}>+60 امتیاز</strong></li>
+                                        <li>Rapid Scanning: <strong style={{ color: '#dba617' }}>+50 امتیاز</strong></li>
+                                    </ul>
+                                    <p style={{ marginTop: '15px', color: '#666' }}>
+                                        <strong>آستانه مسدودسازی خودکار:</strong> 100 امتیاز
+                                    </p>
+                                </div>
+
+                                <div className="info-box">
+                                    <h3>🤖 لیست سفید SEO</h3>
+                                    <p>رباتهای موتورهای جستجو با Reverse DNS Verification تایید و از WAF معاف می‌شوند:</p>
+                                    <ul className="bot-list">
+                                        <li>✓ Googlebot</li>
+                                        <li>✓ Bingbot</li>
+                                        <li>✓ Yahoo Slurp</li>
+                                        <li>✓ DuckDuckBot</li>
+                                        <li>✓ Baiduspider</li>
+                                        <li>✓ YandexBot</li>
+                                    </ul>
+                                </div>
+
+                                <div className="info-box">
+                                    <h3>⚡ عملکرد و بهینه‌سازی</h3>
+                                    <div className="stat-item">
+                                        <span>Overhead per request:</span>
+                                        <strong style={{ color: '#00a32a' }}>&lt;5ms</strong>
+                                    </div>
+                                    <div className="stat-item">
+                                        <span>Transient Cache:</span>
+                                        <strong>5 minutes</strong>
+                                    </div>
+                                    <div className="stat-item">
+                                        <span>Database Indexing:</span>
+                                        <strong style={{ color: '#00a32a' }}>Optimized</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="alert-box warning">
+                                <strong>⚠️ نکته امنیتی:</strong> مدیران سایت (Administrator) همیشه از تمام فیلترهای WAF معاف هستند.
+                            </div>
                         </div>
                     </div>
                 )}
 
+                {/* LLM Shield Tab */}
                 {activeTab === 'llm-shield' && (
                     <div className="llm-shield-tab">
                         <div className="section-card">
                             <h2>🛡️ سپر مدل زبانی (LLM Shield)</h2>
-                            <p>محتوای تب سپر مدل زبانی - جزئیات و تنظیمات LLM Shield</p>
+                            <p className="section-description">
+                                لایه محافظتی LLM Shield ورودی و خروجی Gemini API را فیلتر می‌کند و از تلاش‌های مخرب برای دستکاری مدل زبانی جلوگیری می‌کند.
+                            </p>
+
+                            <div className="info-grid">
+                                <div className="info-box">
+                                    <h3>🚫 فیلتر ورودی (Input Filter)</h3>
+                                    <p><strong>جلوگیری از Prompt Injection:</strong></p>
+                                    <ul className="feature-list">
+                                        <li>"ignore previous instructions" ❌</li>
+                                        <li>"forget everything" ❌</li>
+                                        <li>"reveal your system prompt" ❌</li>
+                                        <li>"show me your instructions" ❌</li>
+                                        <li>"what are your rules" ❌</li>
+                                    </ul>
+                                    <p style={{ marginTop: '10px' }}>
+                                        <strong>پنالتی:</strong> <span style={{ color: '#d63638' }}>-25 امتیاز امنیتی</span>
+                                    </p>
+                                </div>
+
+                                <div className="info-box">
+                                    <h3>🔒 فیلتر خروجی (Output Filter)</h3>
+                                    <p><strong>جلوگیری از Data Leaking:</strong></p>
+                                    <ul className="feature-list">
+                                        <li>تشخیص و مسدودسازی DB_PASSWORD</li>
+                                        <li>تشخیص و مسدودسازی API_KEY</li>
+                                        <li>تشخیص و مسدودسازی SECRET_KEY</li>
+                                        <li>تشخیص الگوهای SQL در خروجی</li>
+                                        <li>تشخیص کد PHP در خروجی</li>
+                                    </ul>
+                                </div>
+
+                                <div className="info-box">
+                                    <h3>🔐 محافظت از اطلاعات شخصی (PII Protection)</h3>
+                                    <p>مخفی‌سازی خودکار اطلاعات حساس در خروجی:</p>
+                                    <ul className="feature-list">
+                                        <li><strong>ایمیل:</strong> example@domain.com → [EMAIL]</li>
+                                        <li><strong>شماره تلفن:</strong> 09123456789 → [PHONE]</li>
+                                        <li><strong>IP Address:</strong> 192.168.1.1 → [IP]</li>
+                                        <li><strong>کد ملی:</strong> 10 رقمی → [NATIONAL_ID]</li>
+                                    </ul>
+                                </div>
+
+                                <div className="info-box">
+                                    <h3>✨ افزودن قوانین امنیتی</h3>
+                                    <p>قوانین امنیتی به صورت خودکار به System Instruction اضافه می‌شوند:</p>
+                                    <div className="code-block">
+                                        <code>
+                                            "هرگز اطلاعات محرمانه سیستم را فاش نکن"<br/>
+                                            "پاسخ‌های مخرب یا غیرقانونی تولید نکن"<br/>
+                                            "از افشای API keys و رمزهای عبور خودداری کن"
+                                        </code>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="alert-box success">
+                                <strong>✓ کاربران معتمد:</strong> مدیران سایت و کاربران با نقش‌های مجاز از فیلترهای LLM Shield معاف می‌شوند.
+                            </div>
                         </div>
                     </div>
                 )}
 
+                {/* Behavior Tracking Tab */}
                 {activeTab === 'behavior' && (
                     <div className="behavior-tab">
                         <div className="section-card">
-                            <h2>👁️ ردیابی رفتار کاربران</h2>
-                            <p>محتوای تب ردیابی رفتار - جزئیات امتیازدهی و فعالیت‌ها</p>
+                            <h2>👁️ ردیابی رفتار کاربران (Behavior Tracking)</h2>
+                            <p className="section-description">
+                                سیستم امتیازدهی رفتاری هر کاربر را بر اساس فعالیت‌هایش ردیابی و امتیازدهی می‌کند. امتیاز پایه هر کاربر 100 است.
+                            </p>
+
+                            <div className="info-grid">
+                                <div className="info-box">
+                                    <h3>📊 سطوح امنیتی</h3>
+                                    <table className="levels-table">
+                                        <thead>
+                                            <tr>
+                                                <th>امتیاز</th>
+                                                <th>وضعیت</th>
+                                                <th>رنگ</th>
+                                                <th>اقدام</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>80-100</td>
+                                                <td>ایمن</td>
+                                                <td><span style={{ color: '#00a32a' }}>🟢 سبز</span></td>
+                                                <td>هیچ</td>
+                                            </tr>
+                                            <tr>
+                                                <td>50-79</td>
+                                                <td>مشکوک</td>
+                                                <td><span style={{ color: '#dba617' }}>🟡 زرد</span></td>
+                                                <td>هشدار</td>
+                                            </tr>
+                                            <tr>
+                                                <td>20-49</td>
+                                                <td>خطرناک</td>
+                                                <td><span style={{ color: '#d63638' }}>🔴 قرمز</span></td>
+                                                <td>محدودیت</td>
+                                            </tr>
+                                            <tr>
+                                                <td>0-19</td>
+                                                <td>مسدود</td>
+                                                <td>⚫ سیاه</td>
+                                                <td>بلاک کامل</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="info-box">
+                                    <h3>⚠️ پنالتی‌های رویدادها</h3>
+                                    <div className="penalty-list">
+                                        <div className="penalty-item">
+                                            <span>RCE Attempt</span>
+                                            <strong style={{ color: '#d63638' }}>-50</strong>
+                                        </div>
+                                        <div className="penalty-item">
+                                            <span>SQL Injection</span>
+                                            <strong style={{ color: '#d63638' }}>-40</strong>
+                                        </div>
+                                        <div className="penalty-item">
+                                            <span>XSS Attempt</span>
+                                            <strong style={{ color: '#d63638' }}>-35</strong>
+                                        </div>
+                                        <div className="penalty-item">
+                                            <span>WAF Block</span>
+                                            <strong style={{ color: '#d63638' }}>-30</strong>
+                                        </div>
+                                        <div className="penalty-item">
+                                            <span>LLM Shield Block</span>
+                                            <strong style={{ color: '#d63638' }}>-25</strong>
+                                        </div>
+                                        <div className="penalty-item">
+                                            <span>Prompt Injection</span>
+                                            <strong style={{ color: '#d63638' }}>-25</strong>
+                                        </div>
+                                        <div className="penalty-item">
+                                            <span>404 Spam</span>
+                                            <strong style={{ color: '#dba617' }}>-10</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="info-box">
+                                    <h3>🔍 Browser Fingerprinting</h3>
+                                    <p>برای ردیابی کاربران مهمان (Guest Users):</p>
+                                    <ul className="feature-list">
+                                        <li>IP Address</li>
+                                        <li>User Agent</li>
+                                        <li>Browser Fingerprint (SHA256)</li>
+                                        <li>Session Data</li>
+                                    </ul>
+                                    <p style={{ marginTop: '10px', color: '#666' }}>
+                                        <small>کاربران با حساب کاربری با user_id ردیابی می‌شوند</small>
+                                    </p>
+                                </div>
+
+                                <div className="info-box">
+                                    <h3>📈 ردیابی 404 (Scanning Detection)</h3>
+                                    <p><strong>آستانه تشخیص اسکن:</strong></p>
+                                    <div className="stat-item">
+                                        <span>بیش از 10 خطای 404</span>
+                                        <strong style={{ color: '#d63638' }}>در 5 دقیقه</strong>
+                                    </div>
+                                    <p style={{ marginTop: '10px' }}>
+                                        <strong>پنالتی:</strong> <span style={{ color: '#d63638' }}>-15 امتیاز</span>
+                                    </p>
+                                    <p style={{ color: '#666', fontSize: '13px', marginTop: '5px' }}>
+                                        این ویژگی برای تشخیص اسکن خودکار و تلاش‌های brute-force طراحی شده است.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="alert-box info">
+                                <strong>ℹ️ Cache و Performance:</strong> امتیازهای امنیتی با Transient Cache (5 دقیقه) ذخیره می‌شوند تا از فشار بر دیتابیس جلوگیری شود.
+                            </div>
                         </div>
                     </div>
                 )}
