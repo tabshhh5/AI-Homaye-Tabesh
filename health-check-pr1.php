@@ -145,6 +145,7 @@ try {
     if (class_exists('\\HomayeTabesh\\HT_Core')) {
         $core = \HomayeTabesh\HT_Core::instance();
         if ($core->memory) {
+            // Create unique test user with timestamp to avoid conflicts
             $test_user = 'test_user_' . time();
             
             // Add test scores
@@ -160,6 +161,9 @@ try {
             // Get dominant persona
             $dominant = $core->memory->get_dominant_persona($test_user);
             echo "   ✓ Dominant persona: " . $dominant['type'] . " (score: " . $dominant['score'] . ")\n";
+            
+            // Note: Test data uses unique timestamp-based user ID to avoid conflicts
+            // Manual cleanup: DELETE FROM wp_homaye_persona_scores WHERE user_identifier LIKE 'test_user_%'
         } else {
             echo "   ✗ Persona Manager not initialized\n";
         }
