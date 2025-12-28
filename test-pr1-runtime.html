@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR #1 Runtime Verification - Homaye Tabesh</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #0073aa;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #0073aa;
+            margin-top: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #0073aa;
+        }
+        .success {
+            color: #46b450;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3232;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffb900;
+            font-weight: bold;
+        }
+        .info {
+            color: #0073aa;
+        }
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #0073aa;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 5px;
+        }
+        .status-dot.green {
+            background: #46b450;
+        }
+        .status-dot.red {
+            background: #dc3232;
+        }
+        .status-dot.yellow {
+            background: #ffb900;
+        }
+        #log {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+        .log-success { color: #98c379; }
+        .log-error { color: #e06c75; }
+        .log-warning { color: #e5c07b; }
+        .log-info { color: #61afef; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 PR #1 Runtime Verification</h1>
+        <p>افزونه همای تابش - تست عملکرد ویژگی‌های PR #1</p>
+
+        <h2>1. Frontend Tracker Status</h2>
+        <div class="test-section">
+            <div id="tracker-status">
+                <span class="info">در حال بررسی...</span>
+            </div>
+        </div>
+
+        <h2>2. Configuration Check</h2>
+        <div class="test-section">
+            <div id="config-status">
+                <span class="info">در حال بررسی تنظیمات...</span>
+            </div>
+        </div>
+
+        <h2>3. REST API Endpoints</h2>
+        <div class="test-section">
+            <div>
+                <button onclick="testTelemetryEndpoint()">Test Telemetry</button>
+                <button onclick="testBatchEndpoint()">Test Batch</button>
+                <button onclick="testPersonaStats()">Test Persona Stats</button>
+                <button onclick="testTriggerCheck()">Test AI Trigger</button>
+                <button onclick="testWooContext()">Test WooCommerce Context</button>
+            </div>
+            <div id="api-results" style="margin-top: 15px;"></div>
+        </div>
+
+        <h2>4. Manual Tracking Test</h2>
+        <div class="test-section">
+            <p>تست ردیابی دستی - روی المان‌های زیر عملیات انجام دهید:</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0;">
+                <div class="et_pb_button" style="padding: 10px 20px; background: #0073aa; color: white; border-radius: 4px; cursor: pointer;" data-homaye-track="click,hover">
+                    دکمه تست (Divi Button)
+                </div>
+                <div class="et_pb_pricing_table" style="padding: 10px 20px; background: #46b450; color: white; border-radius: 4px; cursor: pointer;" data-homaye-track="click,hover">
+                    جدول قیمت (Pricing Table)
+                </div>
+                <div class="et_pb_wc_price" style="padding: 10px 20px; background: #ffb900; color: white; border-radius: 4px; cursor: pointer;" data-homaye-track="click,hover">
+                    قیمت محصول (WC Price)
+                </div>
+            </div>
+            <button onclick="checkTrackedEvents()">بررسی رویدادهای ثبت شده</button>
+        </div>
+
+        <h2>5. Event Log</h2>
+        <div class="test-section">
+            <button onclick="clearLog()">پاک کردن لاگ</button>
+            <button onclick="exportLog()">دانلود لاگ</button>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced logging
+        const logger = {
+            entries: [],
+            log(message, type = 'info') {
+                const entry = {
+                    time: new Date().toLocaleTimeString(),
+                    message,
+                    type
+                };
+                this.entries.push(entry);
+                this.render();
+            },
+            success(message) { this.log(message, 'success'); },
+            error(message) { this.log(message, 'error'); },
+            warning(message) { this.log(message, 'warning'); },
+            info(message) { this.log(message, 'info'); },
+            render() {
+                const logDiv = document.getElementById('log');
+                logDiv.innerHTML = this.entries
+                    .map(e => `<div class="log-entry log-${e.type}">[${e.time}] ${e.message}</div>`)
+                    .join('');
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+        };
+
+        // Check tracker status
+        function checkTrackerStatus() {
+            const statusDiv = document.getElementById('tracker-status');
+            
+            if (typeof homayeConfig !== 'undefined') {
+                logger.success('✓ tracker.js loaded successfully');
+                logger.info('Configuration: ' + JSON.stringify(homayeConfig, null, 2));
+                
+                statusDiv.innerHTML = `
+                    <div class="success">
+                        <span class="status-dot green"></span>
+                        Tracker Loaded Successfully
+                    </div>
+                    <pre>${JSON.stringify(homayeConfig, null, 2)}</pre>
+                `;
+            } else {
+                logger.error('✗ tracker.js NOT loaded or homayeConfig missing');
+                statusDiv.innerHTML = `
+                    <div class="error">
+                        <span class="status-dot red"></span>
+                        Tracker NOT Loaded
+                    </div>
+                    <p>اسکریپت ردیابی بارگذاری نشده است. احتمالاً:</p>
+                    <ul>
+                        <li>گزینه ردیابی غیرفعال است (ht_tracking_enabled = false)</li>
+                        <li>کاربر دسترسی edit_posts دارد</li>
+                        <li>خطا در enqueue_tracker()</li>
+                    </ul>
+                `;
+            }
+        }
+
+        // Check configuration
+        function checkConfiguration() {
+            const configDiv = document.getElementById('config-status');
+            
+            if (typeof homayeConfig !== 'undefined') {
+                const config = homayeConfig;
+                let html = '<div>';
+                
+                html += config.diviEnabled 
+                    ? '<div class="success"><span class="status-dot green"></span> Divi Integration: Enabled</div>'
+                    : '<div class="warning"><span class="status-dot yellow"></span> Divi Integration: Disabled</div>';
+                
+                html += '<div class="info"><span class="status-dot green"></span> User ID: ' + config.userId + '</div>';
+                html += '<div class="info"><span class="status-dot green"></span> API URL: ' + config.apiUrl + '</div>';
+                html += '<div class="info"><span class="status-dot green"></span> Batch URL: ' + config.batchUrl + '</div>';
+                
+                html += '</div>';
+                configDiv.innerHTML = html;
+                
+                logger.info('Configuration checked: Divi=' + config.diviEnabled + ', User=' + config.userId);
+            } else {
+                configDiv.innerHTML = '<div class="error">Configuration not available</div>';
+            }
+        }
+
+        // Test API endpoints
+        async function testAPI(endpoint, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+
+                if (typeof homayeConfig !== 'undefined' && homayeConfig.nonce) {
+                    options.headers['X-WP-Nonce'] = homayeConfig.nonce;
+                }
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(endpoint, options);
+                const result = await response.json();
+                
+                return {
+                    success: response.ok,
+                    status: response.status,
+                    data: result
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        async function testTelemetryEndpoint() {
+            logger.info('Testing telemetry endpoint...');
+            const result = await testAPI(
+                homayeConfig?.apiUrl || '/wp-json/homaye/v1/telemetry',
+                'POST',
+                {
+                    event_type: 'test',
+                    element_class: 'test-class',
+                    element_data: { test: true }
+                }
+            );
+            displayAPIResult('Telemetry', result);
+        }
+
+        async function testBatchEndpoint() {
+            logger.info('Testing batch endpoint...');
+            const result = await testAPI(
+                homayeConfig?.batchUrl || '/wp-json/homaye/v1/telemetry/batch',
+                'POST',
+                {
+                    events: [
+                        { event_type: 'test_batch_1', element_class: 'test', element_data: {} },
+                        { event_type: 'test_batch_2', element_class: 'test', element_data: {} }
+                    ]
+                }
+            );
+            displayAPIResult('Batch', result);
+        }
+
+        async function testPersonaStats() {
+            logger.info('Testing persona stats endpoint...');
+            const result = await testAPI('/wp-json/homaye/v1/persona/stats', 'GET');
+            displayAPIResult('Persona Stats', result);
+        }
+
+        async function testTriggerCheck() {
+            logger.info('Testing AI trigger endpoint...');
+            const result = await testAPI('/wp-json/homaye/v1/trigger/check', 'GET');
+            displayAPIResult('AI Trigger', result);
+        }
+
+        async function testWooContext() {
+            logger.info('Testing WooCommerce context endpoint...');
+            const result = await testAPI('/wp-json/homaye/v1/context/woocommerce', 'GET');
+            displayAPIResult('WooCommerce Context', result);
+        }
+
+        function displayAPIResult(name, result) {
+            const resultsDiv = document.getElementById('api-results');
+            const resultHTML = `
+                <div style="margin: 10px 0; padding: 10px; background: ${result.success ? '#e7f7ed' : '#fce8e6'}; border-radius: 4px;">
+                    <strong>${name}:</strong> 
+                    <span class="${result.success ? 'success' : 'error'}">
+                        ${result.success ? '✓ Success' : '✗ Failed'}
+                    </span>
+                    ${result.status ? ` (Status: ${result.status})` : ''}
+                    <pre>${JSON.stringify(result.data || result.error, null, 2)}</pre>
+                </div>
+            `;
+            resultsDiv.innerHTML = resultHTML + resultsDiv.innerHTML;
+            
+            if (result.success) {
+                logger.success(`✓ ${name} endpoint working`);
+            } else {
+                logger.error(`✗ ${name} endpoint failed: ${result.error || 'Unknown error'}`);
+            }
+        }
+
+        function checkTrackedEvents() {
+            logger.info('Checking for tracked events...');
+            // This would query the database through an API call in a real implementation
+            logger.warning('Note: This requires backend integration to check actual database records');
+        }
+
+        function clearLog() {
+            logger.entries = [];
+            logger.render();
+        }
+
+        function exportLog() {
+            const logText = logger.entries
+                .map(e => `[${e.time}] [${e.type.toUpperCase()}] ${e.message}`)
+                .join('\n');
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `homaye-tabesh-log-${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            logger.success('Log exported successfully');
+        }
+
+        // Run checks on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            logger.info('PR #1 Runtime Verification Started');
+            
+            setTimeout(() => {
+                checkTrackerStatus();
+                checkConfiguration();
+            }, 1000);
+            
+            // Monitor for tracker events
+            if (typeof homayeConfig !== 'undefined') {
+                logger.info('Setting up event monitoring...');
+            }
+        });
+
+        // Override console.log to capture tracker messages
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('Homaye')) {
+                logger.info('Tracker: ' + args.join(' '));
+            }
+        };
+    </script>
+</body>
+</html>
