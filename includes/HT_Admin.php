@@ -1138,6 +1138,47 @@ class HT_Admin
      */
     public function render_security_page(): void
     {
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_die(__('شما دسترسی لازم به این صفحه را ندارید.', 'homaye-tabesh'));
+            return;
+        }
+
+        // Enqueue Security Center CSS
+        wp_enqueue_style(
+            'security-center-styles',
+            HT_PLUGIN_URL . 'assets/css/security-center.css',
+            [],
+            HT_VERSION
+        );
+
+        // Enqueue Security Center React app
+        wp_enqueue_script(
+            'security-center',
+            HT_PLUGIN_URL . 'assets/build/security-center.js',
+            ['wp-element'],
+            HT_VERSION,
+            true
+        );
+
+        // Localize script with API endpoints
+        wp_localize_script('security-center', 'wpApiSettings', [
+            'root' => esc_url_raw(rest_url()),
+            'nonce' => wp_create_nonce('wp_rest'),
+        ]);
+
+        ?>
+        <div class="wrap homaye-tabesh-security-center">
+            <div id="homa-security-center-root"></div>
+        </div>
+        <?php
+    }
+
+    /**
+     * LEGACY: Old render_security_page (kept for reference - can be removed after testing)
+     */
+    private function render_security_page_legacy(): void
+    {
         // Get security stats
         $core = HT_Core::instance();
         $waf = $core->waf_engine;
