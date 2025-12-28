@@ -549,6 +549,34 @@ class HT_Console_Analytics_API
                 'arabic_translation' => (bool) get_option('ht_translation_enabled', true),
                 'order_tracking' => (bool) get_option('ht_order_tracking_enabled', true)
             ],
+            'enabled_modules' => get_option('ht_enabled_modules', [
+                'chat_widget',
+                'behavior_tracking',
+                'persona_engine',
+                'knowledge_base',
+                'security_center',
+                'atlas_dashboard',
+                'global_observer'
+            ]),
+            'otp' => [
+                'melipayamak_username' => get_option('ht_melipayamak_username', ''),
+                'melipayamak_password' => get_option('ht_melipayamak_password', ''),
+                'melipayamak_from_number' => get_option('ht_melipayamak_from_number', ''),
+                'otp_enabled' => (bool) get_option('ht_otp_enabled', true),
+                'otp_expiry_minutes' => (int) get_option('ht_otp_expiry_minutes', 5)
+            ],
+            'localization' => [
+                'locale' => get_option('ht_locale', 'fa_IR'),
+                'rtl_enabled' => (bool) get_option('ht_rtl_enabled', true),
+                'translation_enabled' => (bool) get_option('ht_translation_enabled', true)
+            ],
+            'firewall' => [
+                'waf_enabled' => (bool) get_option('ht_waf_enabled', true),
+                'waf_sensitivity' => get_option('ht_waf_sensitivity', 'medium'),
+                'waf_whitelist_ips' => get_option('ht_waf_whitelist_ips', []),
+                'waf_blacklist_ips' => get_option('ht_waf_blacklist_ips', []),
+                'waf_rate_limit' => (int) get_option('ht_waf_rate_limit', 100)
+            ],
             'messages' => [
                 'welcome_lead' => get_option('ht_welcome_lead_message', ''),
                 'firewall_warning' => get_option('ht_firewall_warning_message', ''),
@@ -612,6 +640,32 @@ class HT_Console_Analytics_API
         // Update security
         if (isset($body['security'])) {
             foreach ($body['security'] as $key => $value) {
+                update_option('ht_' . $key, $value);
+            }
+        }
+
+        // Update enabled_modules
+        if (isset($body['enabled_modules'])) {
+            update_option('ht_enabled_modules', $body['enabled_modules']);
+        }
+
+        // Update OTP settings
+        if (isset($body['otp'])) {
+            foreach ($body['otp'] as $key => $value) {
+                update_option('ht_' . $key, $value);
+            }
+        }
+
+        // Update localization
+        if (isset($body['localization'])) {
+            foreach ($body['localization'] as $key => $value) {
+                update_option('ht_' . $key, $value);
+            }
+        }
+
+        // Update firewall
+        if (isset($body['firewall'])) {
+            foreach ($body['firewall'] as $key => $value) {
                 update_option('ht_' . $key, $value);
             }
         }

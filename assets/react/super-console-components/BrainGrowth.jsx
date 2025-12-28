@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 /**
  * Brain Growth & Knowledge Fine-Tuner Tab - Tab 4
@@ -15,12 +15,7 @@ const BrainGrowth = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadKnowledgeStats();
-        loadFacts();
-    }, [filter]);
-
-    const loadKnowledgeStats = async () => {
+    const loadKnowledgeStats = useCallback(async () => {
         try {
             const response = await fetch(
                 `${window.homaConsoleConfig.apiUrl}/knowledge/stats`,
@@ -37,9 +32,9 @@ const BrainGrowth = () => {
         } catch (error) {
             console.error('Failed to load knowledge stats:', error);
         }
-    };
+    }, []);
 
-    const loadFacts = async () => {
+    const loadFacts = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(
@@ -59,14 +54,19 @@ const BrainGrowth = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filter, searchTerm]);
 
-    const handleEditFact = (fact) => {
+    useEffect(() => {
+        loadKnowledgeStats();
+        loadFacts();
+    }, [loadKnowledgeStats, loadFacts]);
+
+    const handleEditFact = useCallback((fact) => {
         setSelectedFact({ ...fact });
         setEditMode(true);
-    };
+    }, []);
 
-    const handleSaveFact = async () => {
+    const handleSaveFact = useCallback(async () => {
         try {
             const response = await fetch(
                 `${window.homaConsoleConfig.apiUrl}/knowledge/facts/${selectedFact.id}`,
@@ -90,9 +90,9 @@ const BrainGrowth = () => {
             console.error('Failed to save fact:', error);
             alert('❌ خطا در ذخیره فکت');
         }
-    };
+    }, [selectedFact, loadFacts, loadKnowledgeStats]);
 
-    const handleDeleteFact = async (factId) => {
+    const handleDeleteFact = useCallback(async (factId) => {
         if (!confirm('آیا از حذف این فکت مطمئن هستید؟')) return;
 
         try {
@@ -115,9 +115,9 @@ const BrainGrowth = () => {
             console.error('Failed to delete fact:', error);
             alert('❌ خطا در حذف فکت');
         }
-    };
+    }, [loadFacts, loadKnowledgeStats]);
 
-    const handleVerifyFact = async (factId, verified) => {
+    const handleVerifyFact = useCallback(async (factId, verified) => {
         try {
             const response = await fetch(
                 `${window.homaConsoleConfig.apiUrl}/knowledge/facts/${factId}/verify`,
@@ -137,7 +137,7 @@ const BrainGrowth = () => {
         } catch (error) {
             console.error('Failed to verify fact:', error);
         }
-    };
+    }, [loadFacts]);
 
     const stats = knowledge || {
         total_facts: 0,

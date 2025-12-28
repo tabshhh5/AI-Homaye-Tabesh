@@ -127,12 +127,29 @@ class HT_Global_Observer_API
      */
     public function get_observer_status(): \WP_REST_Response
     {
-        $summary = $this->observer->get_monitoring_summary();
+        try {
+            // Add timeout protection
+            set_time_limit(5); // Max 5 seconds for this operation
+            
+            $summary = $this->observer->get_monitoring_summary();
 
-        return new \WP_REST_Response([
-            'success' => true,
-            'data' => $summary,
-        ], 200);
+            return new \WP_REST_Response([
+                'success' => true,
+                'data' => $summary,
+            ], 200);
+        } catch (\Throwable $e) {
+            // Return fallback data if there's an error
+            return new \WP_REST_Response([
+                'success' => true,
+                'data' => [
+                    'monitored_count' => 0,
+                    'active_count' => 0,
+                    'monitored_plugins' => [],
+                    'last_sync' => 'هرگز',
+                    'error' => $e->getMessage(),
+                ],
+            ], 200);
+        }
     }
 
     /**
@@ -142,12 +159,24 @@ class HT_Global_Observer_API
      */
     public function get_installed_plugins(): \WP_REST_Response
     {
-        $plugins = $this->scanner->get_installed_plugins();
+        try {
+            // Add timeout protection
+            set_time_limit(5); // Max 5 seconds for this operation
+            
+            $plugins = $this->scanner->get_installed_plugins();
 
-        return new \WP_REST_Response([
-            'success' => true,
-            'data' => $plugins,
-        ], 200);
+            return new \WP_REST_Response([
+                'success' => true,
+                'data' => $plugins,
+            ], 200);
+        } catch (\Throwable $e) {
+            // Return empty array if there's an error
+            return new \WP_REST_Response([
+                'success' => true,
+                'data' => [],
+                'error' => $e->getMessage(),
+            ], 200);
+        }
     }
 
     /**
@@ -207,30 +236,100 @@ class HT_Global_Observer_API
     /**
      * Get recent changes
      *
+     * @param \WP_REST_Request $request
      * @return \WP_REST_Response
      */
-    public function get_recent_changes(): \WP_REST_Response
+    public function get_recent_changes(\WP_REST_Request $request): \WP_REST_Response
     {
-        $changes = $this->observer->get_recent_changes(50);
+        $limit = min((int) ($request->get_param('limit') ?? 50), 100);
+        $offset = max((int) ($request->get_param('offset') ?? 0), 0);
+        
+        global $wpdb;
+        $table = $wpdb->prefix . 'homa_observer_log';
+
+        // Check if table exists
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) === $table;
+        
+        if (!$table_exists) {
+            // Return empty data if table doesn't exist yet
+            return new \WP_REST_Response([
+                'success' => true,
+                'data' => [],
+                'total' => 0,
+                'limit' => $limit,
+                'offset' => $offset,
+            ], 200);
+        }
+
+        $total = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+        
+        $changes = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d OFFSET %d",
+                $limit,
+                $offset
+            ),
+            ARRAY_A
+        );
 
         return new \WP_REST_Response([
             'success' => true,
-            'data' => $changes,
+            'data' => $changes ?: [],
+            'total' => $total,
+            'limit' => $limit,
+            'offset' => $offset,
         ], 200);
     }
 
     /**
      * Get recent facts
      *
+     * @param \WP_REST_Request $request
      * @return \WP_REST_Response
      */
-    public function get_recent_facts(): \WP_REST_Response
+    public function get_recent_facts(\WP_REST_Request $request): \WP_REST_Response
     {
-        $facts = $this->observer->get_recent_facts(50);
+        $limit = min((int) ($request->get_param('limit') ?? 50), 100);
+        $offset = max((int) ($request->get_param('offset') ?? 0), 0);
+        
+        global $wpdb;
+        $table = $wpdb->prefix . 'homa_knowledge';
+
+        // Check if table exists
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) === $table;
+        
+        if (!$table_exists) {
+            // Return empty data if table doesn't exist yet
+            return new \WP_REST_Response([
+                'success' => true,
+                'data' => [],
+                'total' => 0,
+                'limit' => $limit,
+                'offset' => $offset,
+            ], 200);
+        }
+
+        $total = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE source = %s",
+            'global_observer'
+        ));
+        
+        $facts = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$table} WHERE source = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
+                'global_observer',
+                $limit,
+                $offset
+            ),
+            ARRAY_A
+        );
 
         return new \WP_REST_Response([
             'success' => true,
-            'data' => $facts,
+            'data' => $facts ?: [],
+            'total' => $total,
+            'limit' => $limit,
+            'offset' => $offset,
         ], 200);
     }
 

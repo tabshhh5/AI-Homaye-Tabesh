@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 /**
  * Overview & Analytics Tab - Tab 1
@@ -11,11 +11,7 @@ const OverviewAnalytics = ({ onRefresh }) => {
     const [loading, setLoading] = useState(true);
     const [timeRange, setTimeRange] = useState('7days');
 
-    useEffect(() => {
-        loadAnalytics();
-    }, [timeRange]);
-
-    const loadAnalytics = async () => {
+    const loadAnalytics = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(
@@ -35,7 +31,25 @@ const OverviewAnalytics = ({ onRefresh }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [timeRange]);
+
+    useEffect(() => {
+        loadAnalytics();
+    }, [loadAnalytics]);
+
+    const stats = useMemo(() => {
+        return analytics || {
+            token_usage: {
+                total: 0,
+                by_section: { chat: 0, translation: 0, index: 0 }
+            },
+            leads: {
+                total: 0,
+                conversion_rate: 0
+            },
+            interests: []
+        };
+    }, [analytics]);
 
     if (loading) {
         return (
@@ -45,18 +59,6 @@ const OverviewAnalytics = ({ onRefresh }) => {
             </div>
         );
     }
-
-    const stats = analytics || {
-        token_usage: {
-            total: 0,
-            by_section: { chat: 0, translation: 0, index: 0 }
-        },
-        leads: {
-            total: 0,
-            conversion_rate: 0
-        },
-        interests: []
-    };
 
     return (
         <div className="overview-analytics" dir="rtl">
