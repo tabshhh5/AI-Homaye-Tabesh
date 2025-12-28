@@ -130,13 +130,26 @@ class HT_Persona_Engine
      */
     public static function get_current_persona(): array
     {
-        // Use analyze_user_persona which does the full analysis
-        $persona_data = self::analyze_user_persona();
-        
-        // Add interests data
-        $persona_data['interests'] = HT_Vault_Manager::get_user_interests(10);
-        
-        return $persona_data;
+        try {
+            // Use analyze_user_persona which does the full analysis
+            $persona_data = self::analyze_user_persona();
+            
+            // Add interests data
+            $persona_data['interests'] = HT_Vault_Manager::get_user_interests(10);
+            
+            return $persona_data;
+        } catch (\Exception $e) {
+            // Return default persona on error
+            error_log('HT_Persona_Engine::get_current_persona error: ' . $e->getMessage());
+            return [
+                'persona' => self::PERSONA_CASUAL,
+                'confidence' => 0,
+                'all_scores' => [],
+                'label' => 'ناشناخته',
+                'description' => 'کاربر عمومی',
+                'interests' => []
+            ];
+        }
     }
 
     /**

@@ -165,7 +165,7 @@ class HT_AI_Controller
      * 
      * @param string $message User message
      * @param array $context Full context including persona, page, etc.
-     * @return array AI response with text and actions
+     * @return array AI response with keys: 'success' (bool), 'response' (string), 'actions' (array), 'blocked' (bool, optional)
      */
     public function process_chat_message(string $message, array $context = []): array
     {
