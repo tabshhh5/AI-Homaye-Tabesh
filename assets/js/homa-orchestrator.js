@@ -395,28 +395,27 @@
         }
     };
 
+    // CRITICAL: Initialize orchestrator as early as possible
+    // Create a synchronous init function that runs immediately
+    const initOrchestrator = () => {
+        if (!window.HomaOrchestrator.initialized) {
+            console.log('[Homa Orchestrator] Synchronous initialization starting...');
+            window.HomaOrchestrator.init();
+            
+            // Verify container exists after init
+            if (!document.getElementById('homa-sidebar-view')) {
+                console.warn('[Homa Orchestrator] Container missing after init, creating fallback');
+                window.HomaOrchestrator.createFallbackSidebar();
+            }
+        }
+    };
+
     // Auto-initialize when DOM is ready - MUST run before React sidebar
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize immediately - React sidebar depends on this
-            if (!window.HomaOrchestrator.initialized) {
-                window.HomaOrchestrator.init();
-            }
-        });
+        document.addEventListener('DOMContentLoaded', initOrchestrator);
     } else {
         // Document already loaded, initialize now
-        if (!window.HomaOrchestrator.initialized) {
-            window.HomaOrchestrator.init();
-        }
+        initOrchestrator();
     }
-    
-    // CRITICAL FIX: Ensure sidebar container exists BEFORE any React code runs
-    // This is a fail-safe to prevent blank screen errors
-    setTimeout(() => {
-        if (!document.getElementById('homa-sidebar-view')) {
-            console.warn('[Homa Orchestrator] Sidebar container missing after init - creating emergency fallback');
-            window.HomaOrchestrator.createFallbackSidebar();
-        }
-    }, 50); // Small delay to let init complete
 
 })();

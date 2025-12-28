@@ -29,10 +29,18 @@ window.initHomaParallelUI = function(retryCount = 0) {
         return;
     }
 
-    // Ensure orchestrator is initialized first
+    // CRITICAL: Ensure orchestrator is fully initialized first
     if (window.HomaOrchestrator && !window.HomaOrchestrator.initialized) {
         console.log('[Homa] Waiting for orchestrator initialization...');
         window.HomaOrchestrator.init();
+        
+        // Wait a moment for DOM operations to complete
+        setTimeout(() => {
+            if (!window.HomaOrchestrator.initialized) {
+                console.warn('[Homa] Orchestrator still not initialized, trying fallback');
+                window.HomaOrchestrator.createFallbackSidebar();
+            }
+        }, 50);
     }
 
     // Check if container exists (orchestrator should have created it)
@@ -75,6 +83,7 @@ window.initHomaParallelUI = function(retryCount = 0) {
                 <div style="padding: 20px; text-align: center; color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; margin: 20px;">
                     <h3>خطا در بارگذاری هما</h3>
                     <p>لطفاً صفحه را رفرش کنید. اگر مشکل ادامه داشت، با پشتیبانی تماس بگیرید.</p>
+                    <p style="font-size: 12px; color: #6c757d; margin-top: 10px;">خطا: ${error.message}</p>
                 </div>
             `;
         }

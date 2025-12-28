@@ -26,7 +26,13 @@
 
         // Add click handler
         fab.addEventListener('click', () => {
-            document.dispatchEvent(new CustomEvent('homa:toggle-sidebar'));
+            // Check if orchestrator exists and toggle
+            if (window.HomaOrchestrator) {
+                window.HomaOrchestrator.toggleSidebar();
+            } else {
+                // Fallback: dispatch event
+                document.dispatchEvent(new CustomEvent('homa:toggle-sidebar'));
+            }
         });
 
         // Add to body

@@ -129,6 +129,13 @@ class HT_Vault_REST_API
             ]
         ]);
 
+        // Get user interests (for Explore Widget)
+        register_rest_route(self::NAMESPACE, '/vault/interests', [
+            'methods' => 'GET',
+            'callback' => [self::class, 'get_user_interests'],
+            'permission_callback' => '__return_true'
+        ]);
+
         // Get memory summary
         register_rest_route(self::NAMESPACE, '/memory/summary', [
             'methods' => 'GET',
@@ -306,6 +313,50 @@ class HT_Vault_REST_API
             'memory_summary' => $summary,
             'persona_prefix' => $persona_prefix
         ], 200);
+    }
+
+    /**
+     * Get user interests endpoint (for Explore Widget)
+     *
+     * @param \WP_REST_Request $request Request object
+     * @return \WP_REST_Response Response object
+     */
+    public static function get_user_interests(\WP_REST_Request $request): \WP_REST_Response
+    {
+        try {
+            // Get persona data which includes interests
+            $persona = HT_Persona_Engine::get_current_persona();
+            $interests_data = [];
+            
+            // Get browsing history and interests from vault
+            $vault_data = HT_Vault_Manager::get_all();
+            
+            // Extract interests based on recent interactions
+            $interests = $persona['interests'] ?? [];
+            
+            // If interests exist, format them for the widget
+            if (!empty($interests)) {
+                foreach ($interests as $category => $score) {
+                    $interests_data[] = [
+                        'category' => $category,
+                        'score' => $score,
+                        'context' => '', // Could be enhanced with more context
+                        'related_url' => '', // Could link to relevant pages
+                    ];
+                }
+            }
+            
+            return new \WP_REST_Response([
+                'success' => true,
+                'interests' => $interests_data,
+                'persona' => $persona
+            ], 200);
+        } catch (\Exception $e) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
