@@ -170,26 +170,6 @@ class HT_Activator
 
             dbDelta($sql);
 
-            // Create Legacy User Interests table (for backward compatibility with Console Analytics)
-            // Console Analytics uses homaye_user_interests, this provides compatibility
-            $table_name = $wpdb->prefix . 'homaye_user_interests';
-
-            $sql = "CREATE TABLE IF NOT EXISTS $table_name (
-                id bigint(20) NOT NULL AUTO_INCREMENT,
-                user_id bigint(20) DEFAULT NULL,
-                topic varchar(100) NOT NULL,
-                interest_level int(11) DEFAULT 0,
-                created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-                updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY  (id),
-                KEY user_id (user_id),
-                KEY topic (topic),
-                KEY interest_level (interest_level),
-                KEY created_at (created_at)
-            ) $charset_collate;";
-
-            dbDelta($sql);
-
             // Create Smart Lead Conversion table (PR11)
             $table_name = $wpdb->prefix . 'homa_leads';
 
@@ -584,7 +564,6 @@ class HT_Activator
             'homa_vault',
             'homa_sessions',
             'homa_user_interests',
-            'homaye_user_interests',
             'homa_leads',
             'homaye_leads',
             'homaye_ai_requests',
@@ -694,7 +673,6 @@ class HT_Activator
                 ],
                 'homaye_leads' => [
                     'lead_status' => 'varchar(50) DEFAULT \'new\'',
-                    'status' => 'varchar(50) DEFAULT \'new\'',
                 ],
                 'homaye_conversion_sessions' => [
                     'conversion_status' => 'varchar(50) DEFAULT \'in_progress\'',
@@ -705,10 +683,6 @@ class HT_Activator
                 'homa_user_interests' => [
                     'interest_score' => 'int(11) DEFAULT 0',
                     'category_slug' => 'varchar(50) NOT NULL',
-                ],
-                'homaye_user_interests' => [
-                    'topic' => 'varchar(100) NOT NULL',
-                    'interest_level' => 'int(11) DEFAULT 0',
                 ],
             ];
             
@@ -868,9 +842,7 @@ class HT_Activator
                 'homa_vault',
                 'homa_sessions',
                 'homa_user_interests',
-                'homaye_user_interests',
                 'homa_leads',
-                'homaye_leads',
                 'homaye_ai_requests',
                 'homaye_knowledge',
                 'homaye_security_scores',

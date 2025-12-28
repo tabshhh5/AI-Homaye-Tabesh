@@ -450,8 +450,8 @@
                     'X-WP-Nonce': nonce
                 },
                 body: JSON.stringify({
-                    behavior_type: event,
-                    trigger_data: data,
+                    event_type: event,
+                    event_data: data,
                     session_id: this.getSessionId()
                 })
             }).catch(error => {

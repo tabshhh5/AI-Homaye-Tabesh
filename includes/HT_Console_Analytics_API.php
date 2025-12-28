@@ -375,9 +375,9 @@ class HT_Console_Analytics_API
         ) ?: 0;
 
         $by_category = $wpdb->get_results(
-            "SELECT fact_category as category, COUNT(*) as count 
+            "SELECT category, COUNT(*) as count 
             FROM {$wpdb->prefix}homaye_knowledge_facts 
-            GROUP BY fact_category",
+            GROUP BY category",
             ARRAY_A
         );
 
@@ -426,7 +426,7 @@ class HT_Console_Analytics_API
 
         if (!empty($search)) {
             $search = $wpdb->esc_like($search);
-            $query .= $wpdb->prepare(" AND (fact_value LIKE %s OR fact_category LIKE %s)", 
+            $query .= $wpdb->prepare(" AND (fact LIKE %s OR category LIKE %s)", 
                 '%' . $search . '%', '%' . $search . '%');
         }
 

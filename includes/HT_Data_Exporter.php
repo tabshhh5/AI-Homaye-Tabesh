@@ -478,8 +478,7 @@ class HT_Data_Exporter
     private function get_plugin_settings(): array
     {
         return [
-            'ai_provider' => get_option('ht_ai_provider', 'openai'),
-            'ai_model' => get_option('ht_ai_model', 'gpt-4o-mini'),
+            'gemini_model' => get_option('ht_gemini_model', 'gemini-2.0-flash-exp'),
             'support_phone' => get_option('ht_support_phone', ''),
             'support_email' => get_option('ht_support_email', ''),
             'persona_name' => get_option('ht_persona_name', 'هما'),
