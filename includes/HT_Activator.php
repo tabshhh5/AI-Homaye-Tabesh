@@ -507,6 +507,9 @@ class HT_Activator
                 $optimizer->add_indexes();
             }
             
+            // Ensure all required columns exist (migration for existing databases)
+            self::ensure_columns_exist();
+            
             // Set database version for future migrations
             update_option('homa_db_version', HT_VERSION);
             update_option('homa_db_last_update', current_time('mysql'));
@@ -515,6 +518,62 @@ class HT_Activator
         } catch (\Throwable $e) {
             \HomayeTabesh\HT_Error_Handler::log_exception($e, 'activation_create_tables');
             throw $e; // Re-throw to show error to user
+        }
+    }
+
+    /**
+     * Ensure required columns exist in existing tables
+     * This is a migration method for databases created before these columns were added
+     *
+     * @return void
+     */
+    private static function ensure_columns_exist(): void
+    {
+        global $wpdb;
+        
+        try {
+            // Add 'fact' column to knowledge_facts if not exists
+            $table = $wpdb->prefix . 'homaye_knowledge_facts';
+            
+            // Check if table exists first
+            $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+            if (!$table_exists) {
+                return; // Table doesn't exist yet, skip migration
+            }
+            
+            $column = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM `{$table}` LIKE %s", 'fact'));
+            if (empty($column)) {
+                $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN fact text DEFAULT NULL AFTER id");
+                \HomayeTabesh\HT_Error_Handler::log_error("Added 'fact' column to knowledge_facts table", 'activation_migration');
+            }
+            
+            // Add 'category' column to knowledge_facts if not exists
+            $column = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM `{$table}` LIKE %s", 'category'));
+            if (empty($column)) {
+                $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN category varchar(50) DEFAULT 'general' AFTER fact");
+                \HomayeTabesh\HT_Error_Handler::log_error("Added 'category' column to knowledge_facts table", 'activation_migration');
+            }
+            
+            // Add 'user_id' column to security_scores if not exists
+            $table = $wpdb->prefix . 'homaye_security_scores';
+            
+            // Check if table exists first
+            $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+            if (!$table_exists) {
+                return; // Table doesn't exist yet, skip migration
+            }
+            
+            $column = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM `{$table}` LIKE %s", 'user_id'));
+            if (empty($column)) {
+                $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN user_id bigint(20) DEFAULT NULL AFTER id");
+                $wpdb->query("ALTER TABLE `{$table}` ADD KEY user_id (user_id)");
+                \HomayeTabesh\HT_Error_Handler::log_error("Added 'user_id' column to security_scores table", 'activation_migration');
+            }
+            
+            \HomayeTabesh\HT_Error_Handler::log_error('Database column migration completed successfully', 'activation_migration');
+        } catch (\Throwable $e) {
+            // Log but don't throw - columns might already exist from fresh install
+            \HomayeTabesh\HT_Error_Handler::log_exception($e, 'activation_migration');
         }
     }
 

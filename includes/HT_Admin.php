@@ -1159,19 +1159,19 @@ class HT_Admin
                     <h2>📊 آمار امنیتی</h2>
                     <div style="margin: 15px 0;">
                         <div style="margin: 10px 0;">
-                            <strong>کل رویدادها:</strong> <?php echo number_format($stats['total_events'] ?? 0); ?>
+                            <strong>کل رویدادها:</strong> <?php echo number_format((float)($stats['total_events'] ?? 0)); ?>
                         </div>
                         <div style="margin: 10px 0;">
-                            <strong>رویدادهای 24 ساعت:</strong> <?php echo number_format($stats['events_24h'] ?? 0); ?>
+                            <strong>رویدادهای 24 ساعت:</strong> <?php echo number_format((float)($stats['events_24h'] ?? 0)); ?>
                         </div>
                         <div style="margin: 10px 0; color: #d63638;">
-                            <strong>کاربران مسدود شده:</strong> <?php echo number_format($stats['blocked_users'] ?? 0); ?>
+                            <strong>کاربران مسدود شده:</strong> <?php echo number_format((float)($stats['blocked_users'] ?? 0)); ?>
                         </div>
                         <div style="margin: 10px 0; color: #dba617;">
-                            <strong>کاربران مشکوک:</strong> <?php echo number_format($stats['suspicious_users'] ?? 0); ?>
+                            <strong>کاربران مشکوک:</strong> <?php echo number_format((float)($stats['suspicious_users'] ?? 0)); ?>
                         </div>
                         <div style="margin: 10px 0; color: #00a32a;">
-                            <strong>کاربران ایمن:</strong> <?php echo number_format($stats['safe_users'] ?? 0); ?>
+                            <strong>کاربران ایمن:</strong> <?php echo number_format((float)($stats['safe_users'] ?? 0)); ?>
                         </div>
                     </div>
                 </div>
