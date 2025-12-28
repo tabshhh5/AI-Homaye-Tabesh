@@ -1540,6 +1540,14 @@ class HT_Admin
             return;
         }
 
+        // Enqueue Super Console CSS (fix for CSP eval issue)
+        wp_enqueue_style(
+            'super-console-styles',
+            HT_PLUGIN_URL . 'assets/css/super-console.css',
+            [],
+            HT_VERSION
+        );
+
         // Enqueue Super Console React app
         wp_enqueue_script(
             'super-console',
