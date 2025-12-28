@@ -161,6 +161,58 @@ class HT_AI_Controller
     }
 
     /**
+     * Process chat message from parallel UI sidebar
+     * 
+     * @param string $message User message
+     * @param array $context Full context including persona, page, etc.
+     * @return array AI response with keys: 'success' (bool), 'response' (string), 'actions' (array), 'blocked' (bool, optional)
+     */
+    public function process_chat_message(string $message, array $context = []): array
+    {
+        // Sanitize user input
+        $message = $this->prompt_builder->sanitize_input($message);
+
+        // Get user role context
+        $role_resolver = HT_Core::instance()->role_resolver;
+        $user_role_context = $role_resolver->get_homa_user_context();
+
+        // Check if user is blocked
+        if (isset($user_role_context['blocked']) && $user_role_context['blocked']) {
+            return [
+                'success' => false,
+                'response' => 'دسترسی شما به دلیل فعالیت‌های مشکوک محدود شده است.',
+                'blocked' => true,
+            ];
+        }
+
+        // Build comprehensive context
+        $user_context = [
+            'user_identifier' => $context['user_behavior']['user_id'] ?? 'guest',
+            'message' => $message,
+            'persona' => $context['persona'] ?? null,
+            'page_context' => $context['page_context'] ?? [],
+            'woocommerce_data' => $context['woocommerce_data'] ?? [],
+            'user_behavior' => $context['user_behavior'] ?? [],
+            'timestamp' => current_time('mysql'),
+            'user_role_context' => $user_role_context,
+        ];
+
+        // Generate AI response
+        $result = $this->inference_engine->generate_decision($user_context);
+
+        // Filter response based on user capabilities
+        $chat_capabilities = HT_Core::instance()->chat_capabilities;
+        $result = $chat_capabilities->filter_ai_response($result, $user_role_context);
+
+        // Ensure consistent response format
+        if (!isset($result['response'])) {
+            $result['response'] = $result['text'] ?? 'متأسفم، نتوانستم پاسخی تولید کنم.';
+        }
+
+        return $result;
+    }
+
+    /**
      * Handle suggestion request
      *
      * @param \WP_REST_Request $request Request object

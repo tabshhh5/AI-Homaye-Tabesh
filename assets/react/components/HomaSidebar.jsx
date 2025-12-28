@@ -191,6 +191,21 @@ const HomaSidebar = () => {
             const homaState = window.Homa?.getState() || {};
             const formData = getFormData();
 
+            // Sanitize pageMap to remove DOM element references (prevents circular JSON error)
+            const sanitizedPageMap = (homaState.pageMap || []).map(item => {
+                const { element, rect, ...safeData } = item;
+                return {
+                    ...safeData,
+                    // Include basic rect info without the element reference
+                    rectInfo: rect ? {
+                        width: rect.width || 0,
+                        height: rect.height || 0,
+                        top: rect.top || 0,
+                        left: rect.left || 0
+                    } : null
+                };
+            });
+
             const response = await fetch('/wp-json/homaye/v1/ai/chat', {
                 method: 'POST',
                 headers: {
@@ -204,7 +219,7 @@ const HomaSidebar = () => {
                         page: window.location.pathname,
                         formData: formData,
                         currentInput: homaState.currentUserInput,
-                        pageMap: homaState.pageMap
+                        pageMap: sanitizedPageMap
                     }
                 })
             });
