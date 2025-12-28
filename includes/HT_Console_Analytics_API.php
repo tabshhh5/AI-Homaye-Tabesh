@@ -299,7 +299,7 @@ class HT_Console_Analytics_API
             "SELECT threat_score FROM {$wpdb->prefix}homaye_security_scores WHERE user_id = %d",
             $user_id
         ));
-        $security_score = $threat_score !== null ? (100 - intval($threat_score)) : 100;
+        $security_score = $threat_score !== null ? (100 - (int)$threat_score) : 100;
 
         // Get conversation history
         $conversations = $wpdb->get_results($wpdb->prepare(

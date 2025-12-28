@@ -40,6 +40,12 @@
     const registeredListeners = new Map();
 
     /**
+     * WeakMap to store wrapped callbacks for proper cleanup
+     * Avoids mutating callback function objects
+     */
+    const wrappedCallbacks = new WeakMap();
+
+    /**
      * Event history for debugging
      */
     const eventHistory = [];
@@ -108,8 +114,11 @@
         }
         
         if (registeredListeners.get(eventName).has(callback)) {
-            console.warn(`[Homa Event Bus] Listener already registered for: ${eventName}, skipping duplicate`);
-            return () => {}; // Return no-op cleanup function
+            console.warn(`[Homa Event Bus] Listener already registered for: ${eventName}, returning existing cleanup`);
+            // Return the existing cleanup function
+            return () => {
+                window.Homa.off(eventName, callback);
+            };
         }
         
         // Mark as registered
@@ -125,8 +134,8 @@
         const fullEventName = `homa:${eventName}`;
         const wrappedCallback = (e) => callback(e.detail);
         
-        // Store wrapped callback reference for cleanup
-        callback._homaWrappedCallback = wrappedCallback;
+        // Store wrapped callback in WeakMap to avoid mutating function object
+        wrappedCallbacks.set(callback, wrappedCallback);
         window.addEventListener(fullEventName, wrappedCallback);
 
         console.log(`[Homa Event Bus] Registered listener for: ${eventName}`);
@@ -158,11 +167,12 @@
             registeredListeners.get(eventName).delete(callback);
         }
         
-        // Remove native event listener using stored wrapped callback
-        if (callback._homaWrappedCallback) {
+        // Remove native event listener using wrapped callback from WeakMap
+        const wrappedCallback = wrappedCallbacks.get(callback);
+        if (wrappedCallback) {
             const fullEventName = `homa:${eventName}`;
-            window.removeEventListener(fullEventName, callback._homaWrappedCallback);
-            delete callback._homaWrappedCallback;
+            window.removeEventListener(fullEventName, wrappedCallback);
+            wrappedCallbacks.delete(callback);
         }
     };
 

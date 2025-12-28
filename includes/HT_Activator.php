@@ -390,6 +390,9 @@ class HT_Activator
             dbDelta($sql);
 
             // Create Knowledge Facts table (for console analytics)
+            // Note: Both 'fact' and 'fact_key'/'fact_value' columns exist for backward compatibility
+            // - 'fact' is the main column used by queries (text content)
+            // - 'fact_key'/'fact_value' are legacy columns kept for data migration
             $table_name = $wpdb->prefix . 'homaye_knowledge_facts';
 
             $sql = "CREATE TABLE IF NOT EXISTS $table_name (
