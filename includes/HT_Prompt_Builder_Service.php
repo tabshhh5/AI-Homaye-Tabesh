@@ -185,8 +185,15 @@ IDENTITY;
         }
         
         if ($has_only_scalars) {
-            // Simple array - join with commas
-            return implode(', ', array_map('strval', $value));
+            // Simple array - convert items to strings safely using foreach for better performance
+            $string_values = [];
+            foreach ($value as $item) {
+                // Ensure item is convertible to string
+                if (is_scalar($item) || (is_object($item) && method_exists($item, '__toString'))) {
+                    $string_values[] = (string) $item;
+                }
+            }
+            return implode(', ', $string_values);
         } else {
             // Complex nested array - convert to JSON for safety
             return json_encode($value, JSON_UNESCAPED_UNICODE);

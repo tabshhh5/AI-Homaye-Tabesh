@@ -330,8 +330,9 @@ class HT_Query_Optimizer
         global $wpdb;
 
         $indexes = [
-            // Note: homaye_knowledge table already has indexes in CREATE TABLE statement
-            // No need to add them again here
+            // Note: The homaye_knowledge table (wp_homaye_knowledge with prefix) already has 
+            // all necessary indexes defined in its CREATE TABLE statement in HT_Activator.php
+            // No need to add them again here to avoid "column doesn't exist" errors
             
             // Authority overrides indexes (only if table exists)
             $wpdb->prefix . 'homa_authority_overrides' => [
