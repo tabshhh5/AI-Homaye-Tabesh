@@ -211,13 +211,6 @@ class HT_Admin
         );
 
         // Add AI Configuration fields
-        add_settings_field(
-            'ht_ai_provider',
-            __('انتخاب سرویس‌دهنده', 'homaye-tabesh'),
-            [$this, 'render_ai_provider_field'],
-            'homaye-tabesh',
-            'ht_ai_config_section'
-        );
 
         add_settings_field(
             'ht_ai_model',
@@ -244,13 +237,6 @@ class HT_Admin
         );
 
         // Add settings fields
-        add_settings_field(
-            'ht_openai_api_key',
-            __('کلید API OpenAI (ChatGPT)', 'homaye-tabesh'),
-            [$this, 'render_openai_api_key_field'],
-            'homaye-tabesh',
-            'ht_main_section'
-        );
 
         add_settings_field(
             'ht_tracking_enabled',
@@ -475,8 +461,8 @@ class HT_Admin
     {
         ?>
         <p class="description">
-            تنظیم سرویس‌دهنده و مدل هوش مصنوعی برای تمام عملیات «هما».
-            می‌توانید بین OpenAI Direct یا GapGPT Gateway (سازگار با OpenAI) انتخاب کنید.
+            <strong>معماری Gateway واحد:</strong> تمام مدل‌های هوش مصنوعی (ChatGPT, Gemini, Grok, DeepSeek و ...) از طریق Gateway یکپارچه GapGPT ارائه می‌شوند.
+            <br>شما فقط یک کلید API نیاز دارید و می‌توانید بین مدل‌های مختلف سوییچ کنید.
         </p>
         <?php
     }
@@ -509,14 +495,14 @@ class HT_Admin
     {
         $value = get_option('ht_ai_model', 'gpt-4o-mini');
         $models = [
-            'gpt-4o-mini' => 'GPT-4o Mini (OpenAI)',
-            'gpt-4o' => 'GPT-4o (OpenAI)',
-            'gpt-4-turbo' => 'GPT-4 Turbo (OpenAI)',
-            'grok-3-mini' => 'Grok 3 Mini (via GapGPT)',
-            'gemini-2.0-flash' => 'Gemini 2.0 Flash (via GapGPT)',
-            'qwen3-235b-a22b' => 'Qwen3 235B (via GapGPT)',
-            'deepseek-chat' => 'DeepSeek Chat (via GapGPT)',
-            'claude-sonnet-4-20250514' => 'Claude Sonnet 4 (via GapGPT)',
+            'gpt-4o-mini' => 'GPT-4o Mini (ChatGPT)',
+            'gpt-4o' => 'GPT-4o (ChatGPT)',
+            'gpt-4-turbo' => 'GPT-4 Turbo (ChatGPT)',
+            'gemini-2.0-flash' => 'Gemini 2.0 Flash (Google)',
+            'grok-3-mini' => 'Grok 3 Mini (xAI)',
+            'deepseek-chat' => 'DeepSeek Chat',
+            'qwen3-235b-a22b' => 'Qwen3 235B',
+            'claude-sonnet-4-20250514' => 'Claude Sonnet 4 (Anthropic)',
         ];
         ?>
         <select id="ht_ai_model" name="ht_ai_model">
@@ -527,9 +513,8 @@ class HT_Admin
             <?php endforeach; ?>
         </select>
         <p class="description">
-            مدل هوش مصنوعی مورد استفاده برای پردازش درخواست‌ها. 
-            مدل‌های OpenAI (GPT-4o, GPT-4o-mini) از طریق OpenAI Direct قابل دسترسی هستند.
-            سایر مدل‌ها فقط از طریق GapGPT Gateway در دسترس هستند.
+            <strong>انتخاب مدل هوشمند:</strong> تمام مدل‌ها از طریق GapGPT Gateway ارائه می‌شوند.
+            <br>با تغییر مدل، درخواست شما به AI مورد نظر هدایت می‌شود بدون نیاز به تغییر تنظیمات دیگر.
         </p>
         <?php
     }

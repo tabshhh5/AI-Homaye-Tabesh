@@ -85,19 +85,19 @@ class HT_Gemini_Client
     private function load_config(): void
     {
         if (empty($this->provider) && function_exists('get_option')) {
-            // Default to OpenAI, with GapGPT as fallback gateway option
-            $this->provider = get_option('ht_ai_provider', 'openai');
+            // Single Gateway Architecture: ALL AI communication goes through GapGPT
+            // GapGPT provides access to multiple models (ChatGPT, Gemini, Grok, DeepSeek, etc.)
+            $this->provider = 'gapgpt'; // Fixed - no provider selection needed
             $this->model = get_option('ht_ai_model', self::DEFAULT_MODEL);
             $this->base_url = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
             
-            // Load appropriate API key based on provider
-            if ($this->provider === 'gapgpt') {
-                $this->api_key = get_option('ht_gapgpt_api_key', '');
-            } else {
-                // Use OpenAI API key (check both new and legacy option names)
+            // GapGPT API key is the only key needed
+            $this->api_key = get_option('ht_gapgpt_api_key', '');
+            
+            // Migration support: fallback to legacy keys if GapGPT key not set
+            if (empty($this->api_key)) {
                 $this->api_key = get_option('ht_openai_api_key', '');
                 if (empty($this->api_key)) {
-                    // Fallback to legacy Gemini key option for migration compatibility
                     $this->api_key = get_option('ht_gemini_api_key', '');
                 }
             }
@@ -421,7 +421,7 @@ class HT_Gemini_Client
     }
 
     /**
-     * Make API request to configured provider
+     * Make API request (always through GapGPT gateway)
      *
      * @param array $payload Request payload
      * @return array Response data
@@ -432,16 +432,12 @@ class HT_Gemini_Client
         $this->load_config();
         
         if (empty($this->api_key)) {
-            throw new \Exception('API key not configured for ' . $this->provider);
+            throw new \Exception('GapGPT API key not configured');
         }
 
-        // Build request based on provider
-        if ($this->provider === 'gapgpt') {
-            return $this->make_gapgpt_request($payload);
-        } else {
-            // Default to OpenAI
-            return $this->make_openai_request($payload);
-        }
+        // Single Gateway Architecture: All requests go through GapGPT
+        // GapGPT routes to the selected model (ChatGPT/Gemini/Grok/DeepSeek/etc.)
+        return $this->make_gapgpt_request($payload);
     }
 
     /**
