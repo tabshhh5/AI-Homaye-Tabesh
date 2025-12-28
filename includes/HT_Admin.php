@@ -105,13 +105,6 @@ class HT_Admin
             \HomayeTabesh\HT_Activator::ensure_tables_exist();
         }
 
-        // OpenAI API Key setting
-        register_setting('homaye_tabesh_settings', 'ht_openai_api_key', [
-            'type' => 'string',
-            'sanitize_callback' => 'sanitize_text_field',
-        ]);
-        
-        // Legacy Gemini API key (kept for migration compatibility)
         register_setting('homaye_tabesh_settings', 'ht_gemini_api_key', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_text_field',
@@ -211,6 +204,13 @@ class HT_Admin
         );
 
         // Add AI Configuration fields
+        add_settings_field(
+            'ht_ai_provider',
+            __('انتخاب سرویس‌دهنده', 'homaye-tabesh'),
+            [$this, 'render_ai_provider_field'],
+            'homaye-tabesh',
+            'ht_ai_config_section'
+        );
 
         add_settings_field(
             'ht_ai_model',
@@ -237,6 +237,13 @@ class HT_Admin
         );
 
         // Add settings fields
+        add_settings_field(
+            'ht_gemini_api_key',
+            __('کلید API گوگل Gemini', 'homaye-tabesh'),
+            [$this, 'render_api_key_field'],
+            'homaye-tabesh',
+            'ht_main_section'
+        );
 
         add_settings_field(
             'ht_tracking_enabled',
@@ -281,97 +288,7 @@ class HT_Admin
     }
 
     /**
-     * Render OpenAI API key field
-     */
-    public function render_openai_api_key_field(): void
-    {
-        $openai_key = get_option('ht_openai_api_key', '');
-        $legacy_key = get_option('ht_gemini_api_key', '');
-        $value = !empty($openai_key) ? $openai_key : $legacy_key;
-        ?>
-        <div style="display: flex; gap: 10px; align-items: flex-start;">
-            <div style="flex: 1;">
-                <input type="text" 
-                       id="ht_openai_api_key" 
-                       name="ht_openai_api_key" 
-                       value="<?php echo esc_attr($value); ?>" 
-                       class="regular-text"
-                       placeholder="sk-...">
-                <p class="description">
-                    کلید API خود را از 
-                    <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a> 
-                    دریافت کنید.
-                    <?php if (!empty($legacy_key) && empty($openai_key)): ?>
-                    <br><strong>توجه:</strong> کلید قدیمی Gemini شناسایی شد. لطفاً کلید OpenAI جدید را وارد کنید.
-                    <?php endif; ?>
-                </p>
-            </div>
-            <?php if (!empty($value)): ?>
-            <button type="button" 
-                    id="test-openai-connection" 
-                    class="button button-secondary"
-                    style="white-space: nowrap;">
-                🔍 تست اتصال
-            </button>
-            <?php endif; ?>
-        </div>
-        <div id="test-connection-result" style="margin-top: 10px;"></div>
-        <script>
-        jQuery(document).ready(function($) {
-            $('#test-openai-connection').on('click', function() {
-                var button = $(this);
-                var result = $('#test-connection-result');
-                
-                button.prop('disabled', true).text('در حال تست...');
-                result.html('<div class="notice notice-info inline"><p>در حال اتصال به OpenAI API...</p></div>');
-                
-                $.ajax({
-                    url: '<?php echo esc_url(rest_url('homaye/v1/test-openai')); ?>',
-                    method: 'POST',
-                    beforeSend: function(xhr) {
-                        xhr.setRequestHeader('X-WP-Nonce', '<?php echo wp_create_nonce('wp_rest'); ?>');
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            result.html(
-                                '<div class="notice notice-success inline"><p>' +
-                                '<strong>✅ موفق:</strong> ' + response.message +
-                                (response.data && response.data.duration_ms ? '<br><small>زمان پاسخ: ' + response.data.duration_ms + ' میلی‌ثانیه</small>' : '') +
-                                '</p></div>'
-                            );
-                        } else {
-                            result.html(
-                                '<div class="notice notice-error inline"><p>' +
-                                '<strong>❌ خطا:</strong> ' + response.message +
-                                (response.error ? '<br><small>' + response.error + '</small>' : '') +
-                                '</p></div>'
-                            );
-                        }
-                    },
-                    error: function(xhr) {
-                        var errorMsg = 'خطای ارتباطی با سرور';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMsg = xhr.responseJSON.message;
-                        }
-                        result.html(
-                            '<div class="notice notice-error inline"><p>' +
-                            '<strong>❌ خطا:</strong> ' + errorMsg +
-                            '</p></div>'
-                        );
-                    },
-                    complete: function() {
-                        button.prop('disabled', false).text('🔍 تست اتصال');
-                    }
-                });
-            });
-        });
-        </script>
-        <?php
-    }
-
-    /**
-     * Render API key field (Legacy - kept for backward compatibility)
-     * @deprecated Use render_openai_api_key_field instead
+     * Render API key field
      */
     public function render_api_key_field(): void
     {
@@ -461,8 +378,8 @@ class HT_Admin
     {
         ?>
         <p class="description">
-            <strong>معماری Gateway واحد:</strong> تمام مدل‌های هوش مصنوعی (ChatGPT, Gemini, Grok, DeepSeek و ...) از طریق Gateway یکپارچه GapGPT ارائه می‌شوند.
-            <br>شما فقط یک کلید API نیاز دارید و می‌توانید بین مدل‌های مختلف سوییچ کنید.
+            تنظیم سرویس‌دهنده و مدل هوش مصنوعی برای تمام عملیات «هما».
+            می‌توانید بین Google Gemini Direct یا GapGPT Gateway (سازگار با OpenAI) انتخاب کنید.
         </p>
         <?php
     }
@@ -472,14 +389,14 @@ class HT_Admin
      */
     public function render_ai_provider_field(): void
     {
-        $value = get_option('ht_ai_provider', 'openai');
+        $value = get_option('ht_ai_provider', 'gemini_direct');
         ?>
         <select id="ht_ai_provider" name="ht_ai_provider">
-            <option value="openai" <?php selected($value, 'openai'); ?>>
-                OpenAI Direct
+            <option value="gemini_direct" <?php selected($value, 'gemini_direct'); ?>>
+                Google Gemini Direct
             </option>
             <option value="gapgpt" <?php selected($value, 'gapgpt'); ?>>
-                GapGPT Gateway (Multi-Model)
+                GapGPT Gateway
             </option>
         </select>
         <p class="description">
@@ -493,16 +410,14 @@ class HT_Admin
      */
     public function render_ai_model_field(): void
     {
-        $value = get_option('ht_ai_model', 'gpt-4o-mini');
+        $value = get_option('ht_ai_model', 'gemini-2.0-flash');
         $models = [
-            'gpt-4o-mini' => 'GPT-4o Mini (ChatGPT)',
-            'gpt-4o' => 'GPT-4o (ChatGPT)',
-            'gpt-4-turbo' => 'GPT-4 Turbo (ChatGPT)',
-            'gemini-2.0-flash' => 'Gemini 2.0 Flash (Google)',
-            'grok-3-mini' => 'Grok 3 Mini (xAI)',
+            'grok-3-mini' => 'Grok 3 Mini',
+            'gemini-2.0-flash' => 'Gemini 2.0 Flash',
+            'qwen3-235b-a22b' => 'Qwen3 235B A22B',
             'deepseek-chat' => 'DeepSeek Chat',
-            'qwen3-235b-a22b' => 'Qwen3 235B',
-            'claude-sonnet-4-20250514' => 'Claude Sonnet 4 (Anthropic)',
+            'claude-sonnet-4-20250514' => 'Claude Sonnet 4',
+            'gpt-4o-mini' => 'GPT-4o Mini',
         ];
         ?>
         <select id="ht_ai_model" name="ht_ai_model">
@@ -513,8 +428,9 @@ class HT_Admin
             <?php endforeach; ?>
         </select>
         <p class="description">
-            <strong>انتخاب مدل هوشمند:</strong> تمام مدل‌ها از طریق GapGPT Gateway ارائه می‌شوند.
-            <br>با تغییر مدل، درخواست شما به AI مورد نظر هدایت می‌شود بدون نیاز به تغییر تنظیمات دیگر.
+            مدل هوش مصنوعی مورد استفاده برای پردازش درخواست‌ها. 
+            برخی مدل‌ها (مانند Gemini) از طریق هر دو ارائه‌دهنده قابل دسترسی هستند، 
+            در حالی که دیگر مدل‌ها فقط از طریق GapGPT Gateway در دسترس هستند.
         </p>
         <?php
     }
@@ -1223,19 +1139,19 @@ class HT_Admin
                     <h2>📊 آمار امنیتی</h2>
                     <div style="margin: 15px 0;">
                         <div style="margin: 10px 0;">
-                            <strong>کل رویدادها:</strong> <?php echo number_format((float)($stats['total_events'] ?? 0)); ?>
+                            <strong>کل رویدادها:</strong> <?php echo number_format($stats['total_events'] ?? 0); ?>
                         </div>
                         <div style="margin: 10px 0;">
-                            <strong>رویدادهای 24 ساعت:</strong> <?php echo number_format((float)($stats['events_24h'] ?? 0)); ?>
+                            <strong>رویدادهای 24 ساعت:</strong> <?php echo number_format($stats['events_24h'] ?? 0); ?>
                         </div>
                         <div style="margin: 10px 0; color: #d63638;">
-                            <strong>کاربران مسدود شده:</strong> <?php echo number_format((float)($stats['blocked_users'] ?? 0)); ?>
+                            <strong>کاربران مسدود شده:</strong> <?php echo number_format($stats['blocked_users'] ?? 0); ?>
                         </div>
                         <div style="margin: 10px 0; color: #dba617;">
-                            <strong>کاربران مشکوک:</strong> <?php echo number_format((float)($stats['suspicious_users'] ?? 0)); ?>
+                            <strong>کاربران مشکوک:</strong> <?php echo number_format($stats['suspicious_users'] ?? 0); ?>
                         </div>
                         <div style="margin: 10px 0; color: #00a32a;">
-                            <strong>کاربران ایمن:</strong> <?php echo number_format((float)($stats['safe_users'] ?? 0)); ?>
+                            <strong>کاربران ایمن:</strong> <?php echo number_format($stats['safe_users'] ?? 0); ?>
                         </div>
                     </div>
                 </div>
@@ -1375,7 +1291,7 @@ class HT_Admin
                         <?php foreach ($stats['top_events'] as $event): ?>
                             <tr>
                                 <td><?php echo esc_html($event['event_type']); ?></td>
-                                <td><strong><?php echo number_format((float)($event['count'] ?? 0)); ?></strong></td>
+                                <td><strong><?php echo number_format($event['count']); ?></strong></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
