@@ -436,6 +436,26 @@ class HT_Activator
 
             dbDelta($sql);
 
+            // Create Global Observer Log table (PR13)
+            $table_name = $wpdb->prefix . 'homa_observer_log';
+
+            $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                event_type varchar(50) NOT NULL,
+                plugin_slug varchar(255) DEFAULT NULL,
+                option_name varchar(255) DEFAULT NULL,
+                old_value longtext DEFAULT NULL,
+                new_value longtext DEFAULT NULL,
+                description text DEFAULT NULL,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                KEY event_type (event_type),
+                KEY plugin_slug (plugin_slug),
+                KEY created_at (created_at)
+            ) $charset_collate;";
+
+            dbDelta($sql);
+
             // Create User Behavior Tracking table (with current_score column)
             $table_name = $wpdb->prefix . 'homaye_user_behavior';
 
