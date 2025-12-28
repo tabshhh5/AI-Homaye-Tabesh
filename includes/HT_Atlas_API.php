@@ -32,6 +32,13 @@ class HT_Atlas_API
             'permission_callback' => [$this, 'check_admin_permission'],
         ]);
 
+        // Atlas Statistics (similar to health but focused on key metrics)
+        register_rest_route('homaye/v1', '/atlas/stats', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_atlas_stats'],
+            'permission_callback' => [$this, 'check_admin_permission'],
+        ]);
+
         // User Flow Analysis
         register_rest_route('homaye/v1', '/atlas/flow-analysis', [
             'methods' => 'GET',
@@ -46,10 +53,38 @@ class HT_Atlas_API
             'permission_callback' => [$this, 'check_admin_permission'],
         ]);
 
+        // Behavior Analysis - Bottlenecks
+        register_rest_route('homaye/v1', '/atlas/behavior/bottlenecks', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_bottlenecks'],
+            'permission_callback' => [$this, 'check_admin_permission'],
+        ]);
+
+        // Behavior Analysis - Hesitation Points
+        register_rest_route('homaye/v1', '/atlas/behavior/hesitation-points', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_hesitation_points'],
+            'permission_callback' => [$this, 'check_admin_permission'],
+        ]);
+
         // Recommendations
         register_rest_route('homaye/v1', '/atlas/recommendations', [
             'methods' => 'GET',
             'callback' => [$this, 'get_recommendations'],
+            'permission_callback' => [$this, 'check_admin_permission'],
+        ]);
+
+        // Apply Recommendation
+        register_rest_route('homaye/v1', '/atlas/recommendations/apply', [
+            'methods' => 'POST',
+            'callback' => [$this, 'apply_recommendation'],
+            'permission_callback' => [$this, 'check_admin_permission'],
+        ]);
+
+        // Dismiss Recommendation
+        register_rest_route('homaye/v1', '/atlas/recommendations/dismiss', [
+            'methods' => 'POST',
+            'callback' => [$this, 'dismiss_recommendation'],
             'permission_callback' => [$this, 'check_admin_permission'],
         ]);
 
@@ -204,6 +239,73 @@ class HT_Atlas_API
                     (int)($active_users ?? 0), // Cast to int to ensure type safety
                     $health_score
                 ),
+                'timestamp' => current_time('mysql'),
+            ]
+        ], 200);
+    }
+
+    /**
+     * Get Atlas statistics (focused stats for macro view)
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     */
+    public function get_atlas_stats(\WP_REST_Request $request): \WP_REST_Response
+    {
+        global $wpdb;
+
+        // Get data from last 30 days
+        $thirty_days_ago = date('Y-m-d H:i:s', strtotime('-30 days'));
+        $seven_days_ago = date('Y-m-d H:i:s', strtotime('-7 days'));
+
+        // Active users (last 7 days)
+        $sessions_table = $wpdb->prefix . 'homa_sessions';
+        $active_users = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT session_token) FROM $sessions_table WHERE updated_at > %s",
+            $seven_days_ago
+        )) ?? 0;
+
+        // Conversion rate
+        $conversions_table = $wpdb->prefix . 'homaye_conversion_sessions';
+        $total_sessions = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $sessions_table WHERE updated_at > %s",
+            $thirty_days_ago
+        )) ?? 1; // Avoid division by zero
+        
+        $completed_conversions = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $conversions_table WHERE conversion_status = 'completed' AND created_at > %s",
+            $thirty_days_ago
+        )) ?? 0;
+
+        $conversion_rate = $total_sessions > 0 ? ($completed_conversions / $total_sessions) * 100 : 0;
+
+        // Token usage (last 30 days)
+        $ai_requests_table = $wpdb->prefix . 'homaye_ai_requests';
+        $token_usage = $wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(tokens_used) FROM $ai_requests_table WHERE created_at > %s",
+            $thirty_days_ago
+        )) ?? 0;
+
+        // System health (simple calculation)
+        $health_metrics = [
+            'conversion_rate' => $conversion_rate,
+            'active_users' => (int)$active_users,
+            'total_events' => $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}homaye_telemetry_events WHERE timestamp > %s",
+                $thirty_days_ago
+            )) ?? 0
+        ];
+        $health_score = $this->calculate_health_score($health_metrics);
+        $system_health = $this->get_health_status($health_score);
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'data' => [
+                'active_users' => (int)$active_users,
+                'conversion_rate' => round($conversion_rate, 2),
+                'token_usage' => (int)$token_usage,
+                'system_health' => $system_health,
+                'health_score' => round($health_score, 1),
                 'timestamp' => current_time('mysql'),
             ]
         ], 200);
@@ -422,6 +524,81 @@ class HT_Atlas_API
     }
 
     /**
+     * Get hesitation points (areas where users pause/hesitate)
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     */
+    public function get_hesitation_points(\WP_REST_Request $request): \WP_REST_Response
+    {
+        global $wpdb;
+
+        $events_table = $wpdb->prefix . 'homaye_telemetry_events';
+        $thirty_days_ago = date('Y-m-d H:i:s', strtotime('-30 days'));
+
+        // Find events with high frequency (indicating hesitation/repeated interactions)
+        $hesitation_data = $wpdb->get_results($wpdb->prepare(
+            "SELECT event_type, element_class, COUNT(*) as frequency
+             FROM $events_table 
+             WHERE timestamp > %s 
+             AND event_type IN ('hover', 'scroll', 'click_repeated')
+             GROUP BY event_type, element_class
+             HAVING frequency > 5
+             ORDER BY frequency DESC
+             LIMIT 20",
+            $thirty_days_ago
+        ), ARRAY_A);
+
+        $hesitation_points = [];
+
+        foreach ($hesitation_data as $point) {
+            $hesitation_points[] = [
+                'location' => $point['element_class'] ?? 'unknown',
+                'event_type' => $point['event_type'],
+                'frequency' => (int)$point['frequency'],
+                'insight' => $this->generate_hesitation_insight($point['event_type'], (int)$point['frequency']),
+                'severity' => ((int)$point['frequency']) > 20 ? 'high' : (((int)$point['frequency']) > 10 ? 'medium' : 'low'),
+            ];
+        }
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'data' => [
+                'hesitation_points' => $hesitation_points,
+                'total_detected' => count($hesitation_points),
+                'timestamp' => current_time('mysql'),
+            ]
+        ], 200);
+    }
+
+    /**
+     * Generate hesitation insight
+     *
+     * @param string $event_type
+     * @param int $frequency
+     * @return string
+     */
+    private function generate_hesitation_insight(string $event_type, int $frequency): string
+    {
+        $insights = [
+            'hover' => sprintf(
+                'کاربران %d بار روی این عنصر hover کرده‌اند. احتمالاً در مورد کلیک کردن تردید دارند. پیشنهاد: اضافه کردن راهنمای بیشتر یا CTA واضح‌تر.',
+                $frequency
+            ),
+            'scroll' => sprintf(
+                'کاربران %d بار در این ناحیه اسکرول کرده‌اند. ممکن است محتوا گیج‌کننده باشد. پیشنهاد: ساده‌سازی محتوا و بهبود سلسله‌مراتب بصری.',
+                $frequency
+            ),
+            'click_repeated' => sprintf(
+                'کاربران %d بار روی این عنصر کلیک کرده‌اند. احتمالاً عنصر کار نمی‌کند یا پاسخ کند است. پیشنهاد: بررسی عملکرد و بهبود feedback بصری.',
+                $frequency
+            ),
+        ];
+
+        return $insights[$event_type] ?? sprintf('کاربران %d بار با این عنصر تعامل داشته‌اند.', $frequency);
+    }
+
+    /**
      * Get recommendations
      *
      * @param \WP_REST_Request $request
@@ -507,6 +684,66 @@ class HT_Atlas_API
                 'recommendations' => $recommendations,
                 'total' => count($recommendations),
                 'timestamp' => current_time('mysql'),
+            ]
+        ], 200);
+    }
+
+    /**
+     * Apply a recommendation
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     */
+    public function apply_recommendation(\WP_REST_Request $request): \WP_REST_Response
+    {
+        $params = $request->get_json_params();
+        $recommendation_id = $params['id'] ?? '';
+        
+        // Log the application
+        $applied_recommendations = get_option('ht_atlas_applied_recommendations', []);
+        $applied_recommendations[] = [
+            'id' => $recommendation_id,
+            'applied_at' => current_time('mysql'),
+            'applied_by' => get_current_user_id(),
+        ];
+        update_option('ht_atlas_applied_recommendations', $applied_recommendations);
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'message' => 'پیشنهاد با موفقیت اعمال شد.',
+            'data' => [
+                'id' => $recommendation_id,
+                'status' => 'applied',
+            ]
+        ], 200);
+    }
+
+    /**
+     * Dismiss a recommendation
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     */
+    public function dismiss_recommendation(\WP_REST_Request $request): \WP_REST_Response
+    {
+        $params = $request->get_json_params();
+        $recommendation_id = $params['id'] ?? '';
+        
+        // Log the dismissal
+        $dismissed_recommendations = get_option('ht_atlas_dismissed_recommendations', []);
+        $dismissed_recommendations[] = [
+            'id' => $recommendation_id,
+            'dismissed_at' => current_time('mysql'),
+            'dismissed_by' => get_current_user_id(),
+        ];
+        update_option('ht_atlas_dismissed_recommendations', $dismissed_recommendations);
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'message' => 'پیشنهاد رد شد.',
+            'data' => [
+                'id' => $recommendation_id,
+                'status' => 'dismissed',
             ]
         ], 200);
     }
