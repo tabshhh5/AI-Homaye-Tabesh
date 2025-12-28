@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR #2 Features - Live Demo</title>
+    <style>
+        body {
+            font-family: Tahoma, Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+        .status-active { background: #4ade80; }
+        .status-inactive { background: #ef4444; }
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #2563eb;
+        }
+        .result-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            direction: ltr;
+            text-align: left;
+        }
+        .feature-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .feature-card h3 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+        .metric {
+            display: inline-block;
+            background: #eff6ff;
+            color: #1e40af;
+            padding: 8px 16px;
+            border-radius: 6px;
+            margin: 5px;
+            font-weight: bold;
+        }
+        pre {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .event-log {
+            background: #fef3c7;
+            border-right: 4px solid #f59e0b;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 PR #2: Advanced Telemetry Infrastructure</h1>
+        <p>نمایش زنده ویژگی‌های ردیابی رفتار کاربر و تصمیم‌گیری هوشمند</p>
+    </div>
+
+    <!-- Status Overview -->
+    <div class="section">
+        <h2>📊 وضعیت کامپوننت‌ها</h2>
+        <div class="feature-card">
+            <h3><span class="status-indicator status-active"></span>Frontend (Eyes)</h3>
+            <p>ردیابی رفتار کاربر در صفحه</p>
+            <div class="metric" id="dwell-count">Dwell Time: 0 events</div>
+            <div class="metric" id="scroll-count">Scroll Depth: 0 events</div>
+            <div class="metric" id="heat-count">Heat Points: 0 events</div>
+        </div>
+
+        <div class="feature-card">
+            <h3><span class="status-indicator status-active"></span>Backend (Memory)</h3>
+            <p>تحلیل و امتیازدهی پرسونا</p>
+            <div class="metric" id="persona-score">Score: 0</div>
+            <div class="metric" id="persona-type">Type: Unknown</div>
+        </div>
+
+        <div class="feature-card">
+            <h3><span class="status-indicator status-active"></span>Decision Trigger (Brain)</h3>
+            <p>آمادگی فراخوانی هوش مصنوعی</p>
+            <div class="metric" id="trigger-status">Status: Checking...</div>
+        </div>
+    </div>
+
+    <!-- API Tests -->
+    <div class="section">
+        <h2>🔌 تست API Endpoints</h2>
+        <button class="test-button" onclick="testWooCommerceContext()">
+            WooCommerce Context
+        </button>
+        <button class="test-button" onclick="testPersonaStats()">
+            Persona Stats
+        </button>
+        <button class="test-button" onclick="testAITrigger()">
+            AI Trigger Check
+        </button>
+        <button class="test-button" onclick="sendTestEvent()">
+            Send Test Event
+        </button>
+        <button class="test-button" onclick="clearResults()">
+            Clear Results
+        </button>
+        
+        <div class="result-box" id="api-results">
+            <div style="color: #6b7280;">نتایج تست‌ها اینجا نمایش داده می‌شوند...</div>
+        </div>
+    </div>
+
+    <!-- Event Tracking Demo -->
+    <div class="section">
+        <h2>👁️ نمایش زنده رویدادهای Tracking</h2>
+        <p>رویدادهای ردیابی‌شده در این صفحه:</p>
+        <div class="result-box" id="event-log">
+            <div style="color: #6b7280;">منتظر رویدادها...</div>
+        </div>
+    </div>
+
+    <!-- Component Details -->
+    <div class="section">
+        <h2>🔧 جزئیات پیاده‌سازی</h2>
+        
+        <h3>1. Frontend Tracking (Eyes)</h3>
+        <pre>// Dwell Time Tracking
+trackDwellTime(element, moduleId) {
+  observer.observe(element)
+  → Sends: module_dwell event
+  → Data: {dwell_time, viewport_ratio}
+}
+
+// Scroll Depth Monitoring
+trackScrollDepth() {
+  → Milestones: 25%, 50%, 75%, 100%
+  → Debounced: 300ms
+  → Sends: scroll_depth event
+}
+
+// Heat-Point Detection
+detectHeatPoints() {
+  → Tracks click coordinates
+  → Special zones: pricing, calculator, cart
+  → Sends: heat_point event
+}</pre>
+
+        <h3>2. Persona Scoring (Memory)</h3>
+        <pre>// Dynamic Scoring Rules
+'view_calculator' → author: +10, publisher: +5
+'view_licensing' → author: +20
+'pricing_table_focus' → business: +12, author: +8
+'tirage_calculator' → author: +15, business: +10
+'isbn_search' → author: +20
+
+// Event Multipliers
+click → 1.5x
+long_view → 1.3x
+module_dwell → 1.2x
+hover → 0.8x
+scroll_to → 0.6x</pre>
+
+        <h3>3. AI Trigger Logic (Brain)</h3>
+        <pre>// Threshold Conditions
+Score ≥ 50 points ✓
+Events ≥ 5 recent ✓
+High-intent events detected ✓
+Time window: 5 minutes ✓
+
+// Context Building
+→ User persona data
+→ Recent activity (dwell, scroll, clicks)
+→ WooCommerce context (cart, products)
+→ Divi module interactions</pre>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = '/wp-json/homaye/v1';
+        let eventCount = {dwell: 0, scroll: 0, heat: 0};
+        let eventLog = [];
+
+        // Log function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('fa-IR');
+            const color = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6';
+            const entry = `<div class="event-log" style="border-right-color: ${color}">
+                <strong>[${timestamp}]</strong> ${message}
+            </div>`;
+            
+            const logDiv = document.getElementById('event-log');
+            logDiv.innerHTML = entry + logDiv.innerHTML;
+            
+            // Keep only last 20 events
+            const events = logDiv.getElementsByClassName('event-log');
+            if (events.length > 20) {
+                events[events.length - 1].remove();
+            }
+        }
+
+        // Test WooCommerce Context
+        async function testWooCommerceContext() {
+            try {
+                const response = await fetch(`${API_BASE}/context/woocommerce`);
+                const data = await response.json();
+                
+                displayResult('WooCommerce Context', data);
+                log('✓ WooCommerce context retrieved successfully', 'success');
+            } catch (error) {
+                displayResult('Error', {error: error.message});
+                log('✗ Failed to get WooCommerce context: ' + error.message, 'error');
+            }
+        }
+
+        // Test Persona Stats
+        async function testPersonaStats() {
+            try {
+                const response = await fetch(`${API_BASE}/persona/stats`);
+                const data = await response.json();
+                
+                displayResult('Persona Stats', data);
+                
+                if (data.success && data.analysis) {
+                    const dominant = data.analysis.dominant;
+                    document.getElementById('persona-score').textContent = `Score: ${dominant.score}`;
+                    document.getElementById('persona-type').textContent = `Type: ${dominant.type}`;
+                    log(`✓ Persona: ${dominant.type} (Score: ${dominant.score})`, 'success');
+                }
+            } catch (error) {
+                displayResult('Error', {error: error.message});
+                log('✗ Failed to get persona stats: ' + error.message, 'error');
+            }
+        }
+
+        // Test AI Trigger
+        async function testAITrigger() {
+            try {
+                const response = await fetch(`${API_BASE}/trigger/check`);
+                const data = await response.json();
+                
+                displayResult('AI Trigger Check', data);
+                
+                if (data.success && data.trigger) {
+                    const status = data.trigger.trigger ? 'READY ✓' : 'NOT READY';
+                    document.getElementById('trigger-status').textContent = `Status: ${status}`;
+                    log(`✓ AI Trigger: ${data.trigger.reason}`, 'success');
+                }
+            } catch (error) {
+                displayResult('Error', {error: error.message});
+                log('✗ Failed to check AI trigger: ' + error.message, 'error');
+            }
+        }
+
+        // Send Test Event
+        async function sendTestEvent() {
+            try {
+                const testEvent = {
+                    event_type: 'module_dwell',
+                    element_class: 'et_pb_pricing_table test-demo',
+                    element_data: {
+                        text: 'Test Pricing Table',
+                        dwell_time: 5000,
+                        viewport_ratio: 0.75
+                    }
+                };
+
+                const response = await fetch(`${API_BASE}/telemetry`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-WP-Nonce': window.homayeConfig?.nonce || ''
+                    },
+                    body: JSON.stringify(testEvent)
+                });
+
+                const data = await response.json();
+                displayResult('Test Event Sent', data);
+                
+                if (data.success) {
+                    eventCount.dwell++;
+                    updateEventCounts();
+                    log('✓ Test event sent successfully', 'success');
+                } else {
+                    log('✗ Failed to send test event', 'error');
+                }
+            } catch (error) {
+                displayResult('Error', {error: error.message});
+                log('✗ Error sending test event: ' + error.message, 'error');
+            }
+        }
+
+        // Display result
+        function displayResult(title, data) {
+            const resultDiv = document.getElementById('api-results');
+            const formatted = JSON.stringify(data, null, 2);
+            const entry = `<div style="margin-bottom: 20px;">
+                <strong style="color: #1f2937;">${title}:</strong>
+                <pre style="margin-top: 10px;">${formatted}</pre>
+            </div>`;
+            resultDiv.innerHTML = entry + resultDiv.innerHTML;
+        }
+
+        // Clear results
+        function clearResults() {
+            document.getElementById('api-results').innerHTML = '<div style="color: #6b7280;">نتایج پاک شدند...</div>';
+            document.getElementById('event-log').innerHTML = '<div style="color: #6b7280;">منتظر رویدادها...</div>';
+            log('Results cleared', 'info');
+        }
+
+        // Update event counts
+        function updateEventCounts() {
+            document.getElementById('dwell-count').textContent = `Dwell Time: ${eventCount.dwell} events`;
+            document.getElementById('scroll-count').textContent = `Scroll Depth: ${eventCount.scroll} events`;
+            document.getElementById('heat-count').textContent = `Heat Points: ${eventCount.heat} events`;
+        }
+
+        // Initialize
+        window.addEventListener('load', function() {
+            log('✓ PR #2 Demo Page Loaded', 'success');
+            log('Testing API endpoints...', 'info');
+            
+            // Auto-test on load
+            setTimeout(() => {
+                testPersonaStats();
+                testAITrigger();
+            }, 1000);
+
+            // Listen for tracking events if tracker.js is loaded
+            if (window.homayeConfig) {
+                log('✓ Tracker.js detected - monitoring events', 'success');
+            } else {
+                log('⚠ Tracker.js not loaded (WordPress context required)', 'info');
+            }
+        });
+
+        // Simulate scroll event tracking
+        let scrollTimeout;
+        window.addEventListener('scroll', function() {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                const scrollPercent = Math.round((window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
+                log(`Scroll Depth: ${scrollPercent}%`, 'info');
+                
+                // Track milestones
+                if (scrollPercent >= 25 && eventCount.scroll === 0) {
+                    eventCount.scroll++;
+                    updateEventCounts();
+                    log('✓ Scroll milestone: 25%', 'success');
+                } else if (scrollPercent >= 50 && eventCount.scroll === 1) {
+                    eventCount.scroll++;
+                    updateEventCounts();
+                    log('✓ Scroll milestone: 50%', 'success');
+                } else if (scrollPercent >= 75 && eventCount.scroll === 2) {
+                    eventCount.scroll++;
+                    updateEventCounts();
+                    log('✓ Scroll milestone: 75%', 'success');
+                }
+            }, 300);
+        });
+    </script>
+</body>
+</html>
