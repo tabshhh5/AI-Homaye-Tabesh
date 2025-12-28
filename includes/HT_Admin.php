@@ -376,13 +376,13 @@ class HT_Admin
      */
     public function render_ai_provider_field(): void
     {
-        $value = get_option('ht_ai_provider', 'gapgpt');
+        // Set the provider to gapgpt (hidden, for backward compatibility)
         ?>
         <input type="hidden" id="ht_ai_provider" name="ht_ai_provider" value="gapgpt">
-        <div class="notice notice-info inline">
-            <p>
-                <strong>GapGPT API</strong> - دروازه یکپارچه به مدل‌های هوش مصنوعی<br>
-                <small>سازگار با OpenAI API و دسترسی به مدل‌های OpenAI، Google Gemini، Anthropic Claude، DeepSeek و بیشتر</small>
+        <div class="notice notice-info inline" style="margin: 0; padding: 10px;">
+            <p style="margin: 0;">
+                <strong>🔌 GapGPT API</strong> - دروازه یکپارچه به مدل‌های هوش مصنوعی<br>
+                <small>سازگار با OpenAI API و دسترسی به مدل‌های OpenAI، Google Gemini، Anthropic Claude، DeepSeek، XAI و بیشتر</small>
             </p>
         </div>
         <?php

@@ -857,28 +857,25 @@ final class HT_Core
      */
     public function modify_csp_headers(): void
     {
-        // Always use GapGPT provider
-        $provider = get_option('ht_ai_provider', 'gapgpt');
-        if ($provider === 'gapgpt') {
-            $base_url = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
-            $parsed_url = parse_url($base_url);
+        // Get GapGPT base URL
+        $base_url = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
+        $parsed_url = parse_url($base_url);
+        
+        // Whitelist of allowed domains for GapGPT
+        $allowed_domains = [
+            'https://api.gapgpt.app',
+            'https://api.gapapi.com',
+        ];
+        
+        // Validate parse_url result
+        if ($parsed_url && isset($parsed_url['scheme']) && isset($parsed_url['host'])) {
+            $domain = $parsed_url['scheme'] . '://' . $parsed_url['host'];
             
-            // Whitelist of allowed domains for GapGPT
-            $allowed_domains = [
-                'https://api.gapgpt.app',
-                'https://api.gapapi.com',
-            ];
-            
-            // Validate parse_url result
-            if ($parsed_url && isset($parsed_url['scheme']) && isset($parsed_url['host'])) {
-                $domain = $parsed_url['scheme'] . '://' . $parsed_url['host'];
-                
-                // Only allow whitelisted domains to prevent header injection
-                if (in_array($domain, $allowed_domains, true)) {
-                    // Add CSP header to allow connection to GapGPT
-                    // This allows wp_remote_post() to work with the API
-                    header("Content-Security-Policy: connect-src 'self' " . $domain, false);
-                }
+            // Only allow whitelisted domains to prevent header injection
+            if (in_array($domain, $allowed_domains, true)) {
+                // Add CSP header to allow connection to GapGPT
+                // This allows wp_remote_post() to work with the API
+                header("Content-Security-Policy: connect-src 'self' " . $domain, false);
             }
         }
     }

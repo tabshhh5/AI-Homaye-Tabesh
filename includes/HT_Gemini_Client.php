@@ -18,6 +18,11 @@ namespace HomayeTabesh;
 class HT_Gemini_Client
 {
     /**
+     * Provider identifier constant
+     */
+    private const PROVIDER = 'gapgpt';
+
+    /**
      * API key
      */
     private string $api_key;
@@ -67,8 +72,8 @@ class HT_Gemini_Client
     private function load_config(): void
     {
         if (empty($this->provider) && function_exists('get_option')) {
-            // Always use GapGPT
-            $this->provider = 'gapgpt';
+            // Use constant for provider
+            $this->provider = self::PROVIDER;
             $this->model = get_option('ht_ai_model', 'gemini-2.5-flash');
             $this->base_url = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
             $this->api_key = get_option('ht_gapgpt_api_key', '');
