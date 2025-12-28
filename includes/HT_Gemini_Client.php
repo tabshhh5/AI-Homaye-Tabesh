@@ -1,7 +1,7 @@
 <?php
 /**
- * AI Client (Flexible)
- * Supports both Google Gemini Direct and GapGPT Gateway (OpenAI-compatible)
+ * AI Client - OpenAI/ChatGPT Integration
+ * Supports OpenAI ChatGPT via direct API or GapGPT Gateway
  *
  * @package HomayeTabesh
  * @since 1.0.0
@@ -12,20 +12,23 @@ declare(strict_types=1);
 namespace HomayeTabesh;
 
 /**
- * موتور استنتاج هوش مصنوعی (انعطاف‌پذیر)
- * پشتیبانی از Gemini Direct و GapGPT Gateway
+ * موتور استنتاج هوش مصنوعی
+ * پشتیبانی از OpenAI ChatGPT (مستقیم یا از طریق GapGPT Gateway)
+ * 
+ * Note: Class name kept as HT_Gemini_Client for backward compatibility,
+ * but functionality now exclusively uses OpenAI/ChatGPT.
  */
 class HT_Gemini_Client
 {
     /**
-     * API base URL (Gemini Direct)
+     * OpenAI API base URL
      */
-    private const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
+    private const OPENAI_API_BASE_URL = 'https://api.openai.com/v1';
 
     /**
-     * Model name (Gemini Direct - legacy)
+     * Default OpenAI model
      */
-    private const GEMINI_MODEL_NAME = 'gemini-2.0-flash-exp';
+    private const DEFAULT_MODEL = 'gpt-4o-mini';
 
     /**
      * API key
@@ -33,7 +36,7 @@ class HT_Gemini_Client
     private string $api_key;
 
     /**
-     * Provider (gemini_direct or gapgpt)
+     * Provider (openai or gapgpt)
      */
     private string $provider;
 
@@ -43,7 +46,7 @@ class HT_Gemini_Client
     private string $model;
 
     /**
-     * Base URL (for GapGPT)
+     * Base URL (for GapGPT Gateway)
      */
     private string $base_url;
 
@@ -77,15 +80,21 @@ class HT_Gemini_Client
     private function load_config(): void
     {
         if (empty($this->provider) && function_exists('get_option')) {
-            $this->provider = get_option('ht_ai_provider', 'gemini_direct');
-            $this->model = get_option('ht_ai_model', 'gemini-2.0-flash');
+            // Default to OpenAI, with GapGPT as fallback gateway option
+            $this->provider = get_option('ht_ai_provider', 'openai');
+            $this->model = get_option('ht_ai_model', self::DEFAULT_MODEL);
             $this->base_url = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
             
             // Load appropriate API key based on provider
             if ($this->provider === 'gapgpt') {
                 $this->api_key = get_option('ht_gapgpt_api_key', '');
             } else {
-                $this->api_key = get_option('ht_gemini_api_key', '');
+                // Use OpenAI API key (check both new and legacy option names)
+                $this->api_key = get_option('ht_openai_api_key', '');
+                if (empty($this->api_key)) {
+                    // Fallback to legacy Gemini key option for migration compatibility
+                    $this->api_key = get_option('ht_gemini_api_key', '');
+                }
             }
         }
     }
@@ -425,7 +434,8 @@ class HT_Gemini_Client
         if ($this->provider === 'gapgpt') {
             return $this->make_gapgpt_request($payload);
         } else {
-            return $this->make_gemini_request($payload);
+            // Default to OpenAI
+            return $this->make_openai_request($payload);
         }
     }
 
@@ -555,22 +565,63 @@ class HT_Gemini_Client
     }
 
     /**
-     * Make request to Gemini Direct
+     * Make request to OpenAI API
      *
-     * @param array $payload Request payload
-     * @return array Response data
+     * @param array $payload Request payload (in internal format, will be converted to OpenAI format)
+     * @return array Response data (in Gemini-compatible format for backward compatibility)
      * @throws \Exception
      */
-    private function make_gemini_request(array $payload): array
+    private function make_openai_request(array $payload): array
     {
-        $api_key = $this->api_key;
-        $url = self::GEMINI_API_BASE_URL . self::GEMINI_MODEL_NAME . ':generateContent?key=' . $api_key;
-
+        // Convert internal payload format to OpenAI format
+        $messages = [];
+        
+        // Add system instruction if present
+        if (isset($payload['systemInstruction']['parts']) && 
+            is_array($payload['systemInstruction']['parts']) &&
+            isset($payload['systemInstruction']['parts'][0]['text'])) {
+            $messages[] = [
+                'role' => 'system',
+                'content' => $payload['systemInstruction']['parts'][0]['text']
+            ];
+        }
+        
+        // Add user message
+        if (isset($payload['contents']) && is_array($payload['contents'])) {
+            foreach ($payload['contents'] as $content) {
+                if (isset($content['parts']) && is_array($content['parts'])) {
+                    foreach ($content['parts'] as $part) {
+                        if (isset($part['text'])) {
+                            $messages[] = [
+                                'role' => 'user',
+                                'content' => $part['text']
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+        
+        $openai_payload = [
+            'model' => $this->model,
+            'messages' => $messages,
+            'temperature' => 0.7,
+        ];
+        
+        // Add response format if JSON schema is present
+        if (isset($payload['generationConfig']['responseMimeType']) && 
+            $payload['generationConfig']['responseMimeType'] === 'application/json') {
+            $openai_payload['response_format'] = ['type' => 'json_object'];
+        }
+        
+        $url = self::OPENAI_API_BASE_URL . '/chat/completions';
+        
         $response = wp_remote_post($url, [
             'headers' => [
                 'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->api_key,
             ],
-            'body' => wp_json_encode($payload),
+            'body' => wp_json_encode($openai_payload),
             'timeout' => 30,
         ]);
 
@@ -583,16 +634,13 @@ class HT_Gemini_Client
         
         // Handle various API error codes gracefully
         if ($status_code === 429) {
-            // Log the quota exceeded error
             if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
                 \HomayeTabesh\HT_Error_Handler::log_error(
-                    'Gemini API Quota Exceeded (429). Switching to fallback mode.',
+                    'OpenAI API Rate Limit (429). Switching to fallback mode.',
                     'api_quota'
                 );
             }
-            
-            // Return a structured error response instead of throwing exception
-            throw new \Exception('quota_exceeded:سهمیه روزانه API Gemini تمام شده است. لطفاً بعداً تلاش کنید.');
+            throw new \Exception('quota_exceeded:محدودیت استفاده از API OpenAI. لطفاً بعداً تلاش کنید.');
         }
         
         if ($status_code === 401) {
@@ -600,15 +648,14 @@ class HT_Gemini_Client
         }
         
         if ($status_code === 403) {
-            throw new \Exception('access_denied:دسترسی به API Gemini مسدود شده است. لطفاً تنظیمات API را بررسی کنید.');
+            throw new \Exception('access_denied:دسترسی به API OpenAI مسدود شده است.');
         }
         
         if ($status_code === 503) {
-            throw new \Exception('service_unavailable:سرویس Gemini موقتاً در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.');
+            throw new \Exception('service_unavailable:سرویس OpenAI موقتاً در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.');
         }
         
         if ($status_code !== 200) {
-            // Try to parse error details from response body
             $error_details = json_decode($body, true);
             $error_message = 'API request failed';
             
@@ -618,7 +665,7 @@ class HT_Gemini_Client
             
             if (class_exists('\HomayeTabesh\HT_Error_Handler')) {
                 \HomayeTabesh\HT_Error_Handler::log_error(
-                    "Gemini API Error ($status_code): $error_message",
+                    "OpenAI API Error ($status_code): $error_message",
                     'api_error'
                 );
             }
@@ -632,7 +679,35 @@ class HT_Gemini_Client
             throw new \Exception('Failed to parse API response');
         }
 
-        return $data;
+        // Convert OpenAI response format to Gemini-compatible format
+        return $this->convert_openai_to_gemini_format($data);
+    }
+    
+    /**
+     * Convert OpenAI response to Gemini-compatible format
+     *
+     * @param array $openai_response OpenAI API response
+     * @return array Gemini-compatible response
+     */
+    private function convert_openai_to_gemini_format(array $openai_response): array
+    {
+        if (!isset($openai_response['choices'][0]['message']['content'])) {
+            return $openai_response;
+        }
+        
+        $content = $openai_response['choices'][0]['message']['content'];
+        
+        return [
+            'candidates' => [
+                [
+                    'content' => [
+                        'parts' => [
+                            ['text' => $content]
+                        ]
+                    ]
+                ]
+            ]
+        ];
     }
 
     /**
