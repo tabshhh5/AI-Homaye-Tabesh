@@ -91,9 +91,13 @@ const SuperSettings = () => {
         { id: 'core', name: '🧠 هسته (Core)', description: 'تنظیمات مدل هوش مصنوعی و GapGPT API' },
         { id: 'visual', name: '🎨 بصری و تعاملی', description: 'ظاهر چت و رفتار تعاملی' },
         { id: 'database', name: '🗄️ دیتابیس و ایندکس', description: 'پیکربندی تابش و ایندکسگذاری' },
-        { id: 'modules', name: '🔌 ماژول‌ها', description: 'فعال/غیرفعال سازی قابلیت‌ها' },
-        { id: 'messages', name: '💬 بومی‌سازی', description: 'شخصی‌سازی پیام‌ها' },
-        { id: 'security', name: '🛡️ امنیت', description: 'فایروال و کنترل دسترسی' }
+        { id: 'modules', name: '🔌 ماژول‌های قدیمی', description: 'فعال/غیرفعال سازی قابلیت‌ها (Legacy)' },
+        { id: 'enabled_modules', name: '📦 ماژول‌های کامل', description: 'مدیریت تمام ماژول‌ها' },
+        { id: 'otp', name: '📲 پنل ملی OTP', description: 'تنظیمات MeliPayamak و کد یکبار مصرف' },
+        { id: 'localization', name: '🌐 بومی‌سازی', description: 'تنظیمات زبان و ترجمه' },
+        { id: 'firewall', name: '🔥 فایروال پیشرفته', description: 'WAF و کنترل دسترسی IP' },
+        { id: 'messages', name: '💬 پیام‌ها', description: 'شخصی‌سازی پیام‌ها' },
+        { id: 'security', name: '🛡️ امنیت عمومی', description: 'کنترل دسترسی و امنیت کلی' }
     ];
 
     if (loading) {
@@ -110,6 +114,10 @@ const SuperSettings = () => {
         visual: {},
         database: {},
         modules: {},
+        enabled_modules: [],
+        otp: {},
+        localization: {},
+        firewall: {},
         messages: {},
         security: {}
     };
@@ -399,6 +407,237 @@ const SuperSettings = () => {
                                         onChange={(e) => updateSetting('messages', 'otp_sms', e.target.value)}
                                         rows={2}
                                         placeholder="کد تایید شما: {code}"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeSection === 'enabled_modules' && (
+                        <div className="settings-section">
+                            <h2>📦 ماژولار سازی قابلیت‌ها</h2>
+                            <p className="description">فعال یا غیرفعال کردن ماژول‌های مختلف سیستم</p>
+                            
+                            <div className="setting-group">
+                                {[
+                                    { id: 'chat_widget', name: 'ویجت چت', icon: '💬' },
+                                    { id: 'behavior_tracking', name: 'ردیابی رفتار', icon: '👁️' },
+                                    { id: 'persona_engine', name: 'موتور پرسونا', icon: '🎭' },
+                                    { id: 'knowledge_base', name: 'پایگاه دانش', icon: '📚' },
+                                    { id: 'security_center', name: 'مرکز امنیت', icon: '🛡️' },
+                                    { id: 'atlas_dashboard', name: 'داشبورد اطلس', icon: '🗺️' },
+                                    { id: 'global_observer', name: 'ناظر کل', icon: '🔍' },
+                                    { id: 'live_intervention', name: 'مداخله زنده', icon: '🎯' },
+                                    { id: 'conversion_triggers', name: 'محرک‌های تبدیل', icon: '⚡' },
+                                    { id: 'form_hydration', name: 'پر کردن فرم', icon: '📝' },
+                                    { id: 'offer_display', name: 'نمایش پیشنهادات', icon: '💎' },
+                                    { id: 'visual_guidance', name: 'راهنمای بصری', icon: '🎯' },
+                                    { id: 'tour_manager', name: 'مدیریت تور', icon: '🚶' }
+                                ].map(module => {
+                                    const enabledModules = config.enabled_modules || [];
+                                    const isEnabled = enabledModules.includes(module.id);
+                                    
+                                    return (
+                                        <div key={module.id} className="setting-item checkbox-item">
+                                            <label>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={isEnabled}
+                                                    onChange={(e) => {
+                                                        const newModules = e.target.checked 
+                                                            ? [...enabledModules, module.id]
+                                                            : enabledModules.filter(m => m !== module.id);
+                                                        setSettings(prev => ({
+                                                            ...prev,
+                                                            enabled_modules: newModules
+                                                        }));
+                                                        setHasChanges(true);
+                                                    }}
+                                                />
+                                                <span className="module-label">
+                                                    <span className="module-icon">{module.icon}</span>
+                                                    <span className="module-name">{module.name}</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeSection === 'otp' && (
+                        <div className="settings-section">
+                            <h2>📲 تنظیمات پنل ملی پیامک OTP</h2>
+                            <p className="description">پیکربندی MeliPayamak برای ارسال کد یکبار مصرف</p>
+                            
+                            <div className="setting-group">
+                                <h3>اطلاعات حساب MeliPayamak</h3>
+                                <div className="setting-item">
+                                    <label>نام کاربری:</label>
+                                    <input 
+                                        type="text" 
+                                        value={config.otp?.melipayamak_username || ''}
+                                        onChange={(e) => updateSetting('otp', 'melipayamak_username', e.target.value)}
+                                        placeholder="username@melipayamak.com"
+                                    />
+                                </div>
+                                <div className="setting-item">
+                                    <label>رمز عبور:</label>
+                                    <input 
+                                        type="password" 
+                                        value={config.otp?.melipayamak_password || ''}
+                                        onChange={(e) => updateSetting('otp', 'melipayamak_password', e.target.value)}
+                                        placeholder="********"
+                                    />
+                                </div>
+                                <div className="setting-item">
+                                    <label>شماره ارسال کننده:</label>
+                                    <input 
+                                        type="text" 
+                                        value={config.otp?.melipayamak_from_number || ''}
+                                        onChange={(e) => updateSetting('otp', 'melipayamak_from_number', e.target.value)}
+                                        placeholder="50002710xxx"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="setting-group">
+                                <h3>تنظیمات OTP</h3>
+                                <div className="setting-item checkbox-item">
+                                    <label>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={config.otp?.otp_enabled || false}
+                                            onChange={(e) => updateSetting('otp', 'otp_enabled', e.target.checked)}
+                                        />
+                                        <span>فعال‌سازی OTP</span>
+                                    </label>
+                                </div>
+                                <div className="setting-item">
+                                    <label>مدت اعتبار کد (دقیقه):</label>
+                                    <input 
+                                        type="number" 
+                                        value={config.otp?.otp_expiry_minutes || 5}
+                                        onChange={(e) => updateSetting('otp', 'otp_expiry_minutes', parseInt(e.target.value))}
+                                        min="1"
+                                        max="30"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeSection === 'localization' && (
+                        <div className="settings-section">
+                            <h2>🌐 بومی‌سازی و زبان</h2>
+                            
+                            <div className="setting-group">
+                                <div className="setting-item">
+                                    <label>زبان پیش‌فرض:</label>
+                                    <select 
+                                        value={config.localization?.locale || 'fa_IR'}
+                                        onChange={(e) => updateSetting('localization', 'locale', e.target.value)}
+                                    >
+                                        <option value="fa_IR">فارسی (Farsi)</option>
+                                        <option value="ar">عربی (Arabic)</option>
+                                        <option value="en_US">انگلیسی (English)</option>
+                                    </select>
+                                </div>
+                                <div className="setting-item checkbox-item">
+                                    <label>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={config.localization?.rtl_enabled !== false}
+                                            onChange={(e) => updateSetting('localization', 'rtl_enabled', e.target.checked)}
+                                        />
+                                        <span>فعال‌سازی RTL</span>
+                                    </label>
+                                </div>
+                                <div className="setting-item checkbox-item">
+                                    <label>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={config.localization?.translation_enabled !== false}
+                                            onChange={(e) => updateSetting('localization', 'translation_enabled', e.target.checked)}
+                                        />
+                                        <span>ترجمه خودکار به عربی</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeSection === 'firewall' && (
+                        <div className="settings-section">
+                            <h2>🔥 فایروال پیشرفته (WAF)</h2>
+                            <p className="description">تنظیمات Web Application Firewall</p>
+                            
+                            <div className="setting-group">
+                                <h3>تنظیمات عمومی</h3>
+                                <div className="setting-item checkbox-item">
+                                    <label>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={config.firewall?.waf_enabled !== false}
+                                            onChange={(e) => updateSetting('firewall', 'waf_enabled', e.target.checked)}
+                                        />
+                                        <span>فعال‌سازی WAF</span>
+                                    </label>
+                                </div>
+                                <div className="setting-item">
+                                    <label>سطح حساسیت:</label>
+                                    <select 
+                                        value={config.firewall?.waf_sensitivity || 'medium'}
+                                        onChange={(e) => updateSetting('firewall', 'waf_sensitivity', e.target.value)}
+                                    >
+                                        <option value="low">کم - سازگار با همه</option>
+                                        <option value="medium">متوسط - توصیه شده</option>
+                                        <option value="high">بالا - سختگیرانه</option>
+                                    </select>
+                                </div>
+                                <div className="setting-item">
+                                    <label>محدودیت درخواست (Rate Limit):</label>
+                                    <input 
+                                        type="number" 
+                                        value={config.firewall?.waf_rate_limit || 100}
+                                        onChange={(e) => updateSetting('firewall', 'waf_rate_limit', parseInt(e.target.value))}
+                                        min="10"
+                                        max="1000"
+                                        placeholder="100"
+                                    />
+                                    <small>تعداد درخواست مجاز در دقیقه</small>
+                                </div>
+                            </div>
+
+                            <div className="setting-group">
+                                <h3>لیست سفید IP (Whitelist)</h3>
+                                <div className="setting-item">
+                                    <label>IP های مجاز (هر کدام در یک خط):</label>
+                                    <textarea 
+                                        value={(config.firewall?.waf_whitelist_ips || []).join('\n')}
+                                        onChange={(e) => {
+                                            const ips = e.target.value.split('\n').filter(ip => ip.trim());
+                                            updateSetting('firewall', 'waf_whitelist_ips', ips);
+                                        }}
+                                        rows={5}
+                                        placeholder="192.168.1.1&#10;10.0.0.1"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="setting-group">
+                                <h3>لیست سیاه IP (Blacklist)</h3>
+                                <div className="setting-item">
+                                    <label>IP های مسدود (هر کدام در یک خط):</label>
+                                    <textarea 
+                                        value={(config.firewall?.waf_blacklist_ips || []).join('\n')}
+                                        onChange={(e) => {
+                                            const ips = e.target.value.split('\n').filter(ip => ip.trim());
+                                            updateSetting('firewall', 'waf_blacklist_ips', ips);
+                                        }}
+                                        rows={5}
+                                        placeholder="1.2.3.4&#10;5.6.7.8"
                                     />
                                 </div>
                             </div>
