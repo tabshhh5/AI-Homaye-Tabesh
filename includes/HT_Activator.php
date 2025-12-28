@@ -534,25 +534,39 @@ class HT_Activator
         try {
             // Add 'fact' column to knowledge_facts if not exists
             $table = $wpdb->prefix . 'homaye_knowledge_facts';
-            $column = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'fact'");
+            
+            // Check if table exists first
+            $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+            if (!$table_exists) {
+                return; // Table doesn't exist yet, skip migration
+            }
+            
+            $column = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM `{$table}` LIKE %s", 'fact'));
             if (empty($column)) {
-                $wpdb->query("ALTER TABLE $table ADD COLUMN fact text NOT NULL AFTER id");
+                $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN fact text DEFAULT NULL AFTER id");
                 \HomayeTabesh\HT_Error_Handler::log_error("Added 'fact' column to knowledge_facts table", 'activation_migration');
             }
             
             // Add 'category' column to knowledge_facts if not exists
-            $column = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'category'");
+            $column = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM `{$table}` LIKE %s", 'category'));
             if (empty($column)) {
-                $wpdb->query("ALTER TABLE $table ADD COLUMN category varchar(50) DEFAULT 'general' AFTER fact");
+                $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN category varchar(50) DEFAULT 'general' AFTER fact");
                 \HomayeTabesh\HT_Error_Handler::log_error("Added 'category' column to knowledge_facts table", 'activation_migration');
             }
             
             // Add 'user_id' column to security_scores if not exists
             $table = $wpdb->prefix . 'homaye_security_scores';
-            $column = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'user_id'");
+            
+            // Check if table exists first
+            $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+            if (!$table_exists) {
+                return; // Table doesn't exist yet, skip migration
+            }
+            
+            $column = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM `{$table}` LIKE %s", 'user_id'));
             if (empty($column)) {
-                $wpdb->query("ALTER TABLE $table ADD COLUMN user_id bigint(20) DEFAULT NULL AFTER id");
-                $wpdb->query("ALTER TABLE $table ADD KEY user_id (user_id)");
+                $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN user_id bigint(20) DEFAULT NULL AFTER id");
+                $wpdb->query("ALTER TABLE `{$table}` ADD KEY user_id (user_id)");
                 \HomayeTabesh\HT_Error_Handler::log_error("Added 'user_id' column to security_scores table", 'activation_migration');
             }
             
