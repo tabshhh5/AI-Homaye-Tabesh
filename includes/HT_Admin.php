@@ -105,11 +105,6 @@ class HT_Admin
             \HomayeTabesh\HT_Activator::ensure_tables_exist();
         }
 
-        register_setting('homaye_tabesh_settings', 'ht_gemini_api_key', [
-            'type' => 'string',
-            'sanitize_callback' => 'sanitize_text_field',
-        ]);
-
         register_setting('homaye_tabesh_settings', 'ht_tracking_enabled', [
             'type' => 'boolean',
             'default' => true,
@@ -237,14 +232,6 @@ class HT_Admin
         );
 
         // Add settings fields
-        add_settings_field(
-            'ht_gemini_api_key',
-            __('کلید API گوگل Gemini', 'homaye-tabesh'),
-            [$this, 'render_api_key_field'],
-            'homaye-tabesh',
-            'ht_main_section'
-        );
-
         add_settings_field(
             'ht_tracking_enabled',
             __('ردیابی رفتار', 'homaye-tabesh'),
@@ -1599,89 +1586,48 @@ class HT_Admin
             return;
         }
 
-        $provider = isset($_POST['provider']) ? sanitize_text_field($_POST['provider']) : 'gemini_direct';
         $api_key = isset($_POST['api_key']) ? sanitize_text_field($_POST['api_key']) : '';
         $base_url = isset($_POST['base_url']) ? esc_url_raw($_POST['base_url']) : 'https://api.gapgpt.app/v1';
 
-        // Test based on provider
-        if ($provider === 'gapgpt') {
-            if (empty($api_key)) {
-                wp_send_json_error(['message' => 'کلید API برای GapGPT الزامی است']);
-                return;
-            }
+        if (empty($api_key)) {
+            wp_send_json_error(['message' => 'کلید API برای GapGPT الزامی است']);
+            return;
+        }
 
-            // Test GapGPT connection
-            $test_url = rtrim($base_url, '/') . '/chat/completions';
-            $response = wp_remote_post($test_url, [
-                'timeout' => 15,
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Authorization' => 'Bearer ' . $api_key,
+        // Test GapGPT connection
+        $test_url = rtrim($base_url, '/') . '/chat/completions';
+        $response = wp_remote_post($test_url, [
+            'timeout' => 15,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $api_key,
+            ],
+            'body' => wp_json_encode([
+                'model' => 'gemini-2.5-flash',
+                'messages' => [
+                    ['role' => 'user', 'content' => 'سلام']
                 ],
-                'body' => wp_json_encode([
-                    'model' => 'gemini-2.0-flash',
-                    'messages' => [
-                        ['role' => 'user', 'content' => 'سلام']
-                    ],
-                    'max_tokens' => 10,
-                ]),
-            ]);
+                'max_tokens' => 10,
+            ]),
+        ]);
 
-            if (is_wp_error($response)) {
-                wp_send_json_error(['message' => 'خطا در ارتباط: ' . $response->get_error_message()]);
-                return;
-            }
+        if (is_wp_error($response)) {
+            wp_send_json_error(['message' => 'خطا در ارتباط: ' . $response->get_error_message()]);
+            return;
+        }
 
-            $status_code = wp_remote_retrieve_response_code($response);
-            $body = json_decode(wp_remote_retrieve_body($response), true);
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = json_decode(wp_remote_retrieve_body($response), true);
 
-            if ($status_code === 200 || $status_code === 201) {
-                wp_send_json_success(['message' => 'اتصال موفق! GapGPT به درستی کار می‌کند']);
-            } elseif ($status_code === 401) {
-                wp_send_json_error(['message' => 'کلید API نامعتبر است']);
-            } elseif ($status_code === 429) {
-                wp_send_json_error(['message' => 'محدودیت درخواست: لطفاً کمی صبر کنید']);
-            } else {
-                $error_msg = isset($body['error']['message']) ? $body['error']['message'] : 'خطای ناشناخته';
-                wp_send_json_error(['message' => 'خطا (' . $status_code . '): ' . $error_msg]);
-            }
+        if ($status_code === 200 || $status_code === 201) {
+            wp_send_json_success(['message' => 'اتصال موفق! GapGPT به درستی کار می‌کند']);
+        } elseif ($status_code === 401) {
+            wp_send_json_error(['message' => 'کلید API نامعتبر است']);
+        } elseif ($status_code === 429) {
+            wp_send_json_error(['message' => 'محدودیت درخواست: لطفاً کمی صبر کنید']);
         } else {
-            // Test Gemini Direct
-            $gemini_api_key = get_option('ht_gemini_api_key', '');
-            if (empty($gemini_api_key)) {
-                wp_send_json_error(['message' => 'کلید API Gemini تنظیم نشده است']);
-                return;
-            }
-
-            $test_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' . $gemini_api_key;
-            $response = wp_remote_post($test_url, [
-                'timeout' => 15,
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                ],
-                'body' => wp_json_encode([
-                    'contents' => [
-                        ['parts' => [['text' => 'سلام']]]
-                    ],
-                ]),
-            ]);
-
-            if (is_wp_error($response)) {
-                wp_send_json_error(['message' => 'خطا در ارتباط: ' . $response->get_error_message()]);
-                return;
-            }
-
-            $status_code = wp_remote_retrieve_response_code($response);
-            
-            if ($status_code === 200) {
-                wp_send_json_success(['message' => 'اتصال موفق! Gemini Direct به درستی کار می‌کند']);
-            } elseif ($status_code === 401 || $status_code === 403) {
-                wp_send_json_error(['message' => 'کلید API Gemini نامعتبر است']);
-            } elseif ($status_code === 429) {
-                wp_send_json_error(['message' => 'محدودیت درخواست: سهمیه API تمام شده']);
-            } else {
-                wp_send_json_error(['message' => 'خطا در ارتباط با Gemini (کد ' . $status_code . ')']);
-            }
+            $error_msg = isset($body['error']['message']) ? $body['error']['message'] : 'خطای ناشناخته';
+            wp_send_json_error(['message' => 'خطا (' . $status_code . '): ' . $error_msg]);
         }
     }
 }
