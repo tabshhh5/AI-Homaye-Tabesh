@@ -656,15 +656,18 @@ class HT_Activator
                 ],
                 'homaye_knowledge_facts' => [
                     'verified' => 'tinyint(1) DEFAULT 0',
-                    'fact_category' => 'varchar(50) DEFAULT \'general\'',
+                    'category' => 'varchar(50) DEFAULT \'general\'',
+                    'fact' => 'text DEFAULT NULL',
                     'is_active' => 'tinyint(1) DEFAULT 1',
+                    'tags' => 'text DEFAULT NULL',
                 ],
                 'homaye_knowledge' => [
                     'fact_category' => 'varchar(50) DEFAULT \'general\'',
                     'is_active' => 'tinyint(1) DEFAULT 1',
                 ],
                 'homaye_security_scores' => [
-                    'current_score' => 'int(11) DEFAULT 100',
+                    'user_id' => 'bigint(20) DEFAULT NULL',
+                    'threat_score' => 'int(11) DEFAULT 0',
                 ],
                 'homaye_user_behavior' => [
                     'current_score' => 'int(11) DEFAULT 100',
