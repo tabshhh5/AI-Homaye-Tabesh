@@ -27,7 +27,7 @@ class HT_System_Diagnostics
     public function check_system_integrity(): array
     {
         return [
-            'gemini_api' => $this->test_gemini_connection(),
+            'gapgpt_api' => $this->test_ai_connection(),
             'tabesh_database' => $this->check_tabesh_db_bridge(),
             'index_status' => $this->get_index_health_score(),
             'meli_payamak' => $this->check_meli_payamak_status(),
@@ -39,66 +39,108 @@ class HT_System_Diagnostics
     }
 
     /**
-     * Test Gemini API connection
+     * Test AI API connection (GapGPT or direct Gemini)
      *
      * @return array Connection status
      */
-    private function test_gemini_connection(): array
+    private function test_ai_connection(): array
     {
         $start_time = microtime(true);
         
         try {
-            $api_key = get_option('ht_gemini_api_key', '');
+            $ai_provider = get_option('ht_ai_provider', 'gapgpt');
+            $api_key = get_option('ht_gapgpt_api_key', '');
+            $base_url = get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1');
+            $model = get_option('ht_ai_model', 'gemini-2.5-flash');
             
             if (empty($api_key)) {
                 return [
                     'status' => 'error',
                     'connection' => 'No API Key',
-                    'message' => 'کلید API تنظیم نشده است'
+                    'message' => 'کلید API تنظیم نشده است',
+                    'provider' => $ai_provider
                 ];
             }
 
-            // Simple test request
-            $core = HT_Core::instance();
-            if (!$core->brain) {
-                return [
-                    'status' => 'error',
-                    'connection' => 'Not Initialized',
-                    'message' => 'کلاینت Gemini مقداردهی نشده است'
-                ];
-            }
-
-            // Test with a simple prompt
-            $response = $core->brain->generate_response('سلام', [
-                'context' => 'health_check',
-                'max_tokens' => 10
+            // Test with a simple request to GapGPT
+            $test_url = rtrim($base_url, '/') . '/chat/completions';
+            $response = wp_remote_post($test_url, [
+                'timeout' => 10,
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Bearer ' . $api_key,
+                ],
+                'body' => wp_json_encode([
+                    'model' => $model,
+                    'messages' => [
+                        ['role' => 'user', 'content' => 'سلام']
+                    ],
+                    'max_tokens' => 10,
+                ]),
             ]);
 
             $response_time = round((microtime(true) - $start_time) * 1000, 2);
 
-            if ($response) {
+            if (is_wp_error($response)) {
+                return [
+                    'status' => 'error',
+                    'connection' => 'Failed',
+                    'response_time' => $response_time . 'ms',
+                    'message' => 'خطا در اتصال: ' . $response->get_error_message(),
+                    'provider' => $ai_provider,
+                    'model' => $model
+                ];
+            }
+
+            $status_code = wp_remote_retrieve_response_code($response);
+            
+            if ($status_code === 200 || $status_code === 201) {
                 return [
                     'status' => 'healthy',
                     'connection' => 'Connected',
                     'response_time' => $response_time . 'ms',
-                    'model' => 'gemini-2.5-flash'
+                    'model' => $model,
+                    'provider' => $ai_provider
+                ];
+            } else if ($status_code === 401) {
+                return [
+                    'status' => 'error',
+                    'connection' => 'Authentication Failed',
+                    'response_time' => $response_time . 'ms',
+                    'message' => 'کلید API نامعتبر است',
+                    'provider' => $ai_provider,
+                    'model' => $model
+                ];
+            } else {
+                return [
+                    'status' => 'warning',
+                    'connection' => 'Partial',
+                    'response_time' => $response_time . 'ms',
+                    'message' => 'کد وضعیت غیرمنتظره: ' . $status_code,
+                    'provider' => $ai_provider,
+                    'model' => $model
                 ];
             }
-
-            return [
-                'status' => 'warning',
-                'connection' => 'Timeout',
-                'response_time' => $response_time . 'ms',
-                'message' => 'پاسخ دریافت نشد اما اتصال برقرار است'
-            ];
 
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
                 'connection' => 'Failed',
-                'message' => 'خطا در اتصال: ' . $e->getMessage()
+                'message' => 'خطا در اتصال: ' . $e->getMessage(),
+                'provider' => get_option('ht_ai_provider', 'gapgpt')
             ];
         }
+    }
+
+    /**
+     * Test Gemini API connection (deprecated - kept for compatibility)
+     *
+     * @return array Connection status
+     * @deprecated Use test_ai_connection() instead
+     */
+    private function test_gemini_connection(): array
+    {
+        return $this->test_ai_connection();
     }
 
     /**

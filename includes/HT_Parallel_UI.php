@@ -331,10 +331,10 @@ class HT_Parallel_UI
     /**
      * Get user behavior data
      *
-     * @param string $user_id
+     * @param int|string $user_id
      * @return array
      */
-    private function get_user_behavior(string $user_id): array
+    private function get_user_behavior($user_id): array
     {
         // Get from telemetry
         $behavior = $this->core->eyes->get_user_journey($user_id);

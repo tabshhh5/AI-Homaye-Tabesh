@@ -524,8 +524,10 @@ class HT_Console_Analytics_API
     {
         $settings = [
             'core' => [
-                'gemini_version' => get_option('ht_gemini_version', 'v1beta'),
-                'model' => get_option('ht_gemini_model', 'gemini-2.5-flash'),
+                'ai_provider' => get_option('ht_ai_provider', 'gapgpt'),
+                'model' => get_option('ht_ai_model', 'gemini-2.5-flash'),
+                'gapgpt_api_key' => get_option('ht_gapgpt_api_key', ''),
+                'gapgpt_base_url' => get_option('ht_gapgpt_base_url', 'https://api.gapgpt.app/v1'),
                 'max_tokens' => (int) get_option('ht_max_tokens', 2048),
                 'temperature' => (float) get_option('ht_temperature', 0.7)
             ],

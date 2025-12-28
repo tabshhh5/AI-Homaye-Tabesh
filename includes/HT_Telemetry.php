@@ -513,4 +513,64 @@ class HT_Telemetry
             'stats' => $stats,
         ], 200);
     }
+    
+    /**
+     * Get user journey/behavior data
+     *
+     * @param int|string $user_id User identifier
+     * @return array User behavior data
+     */
+    public function get_user_journey($user_id): array
+    {
+        global $wpdb;
+        
+        // Convert user_id to string for consistent handling
+        $user_identifier = is_int($user_id) ? (string)$user_id : $user_id;
+        
+        // Get basic behavior metrics
+        $table_name = $wpdb->prefix . 'homaye_telemetry';
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+        if (!$table_exists) {
+            return [
+                'page_views' => 0,
+                'time_on_site' => 0,
+                'interactions' => [],
+                'last_activity' => null
+            ];
+        }
+        
+        // Get page view count
+        $page_views = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT page_url) FROM $table_name WHERE user_id = %s",
+            $user_identifier
+        )) ?: 0;
+        
+        // Get time on site (sum of durations)
+        $time_on_site = $wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(duration) FROM $table_name WHERE user_id = %s AND duration > 0",
+            $user_identifier
+        )) ?: 0;
+        
+        // Get recent interactions
+        $interactions = $wpdb->get_results($wpdb->prepare(
+            "SELECT event_type, page_url, created_at FROM $table_name 
+            WHERE user_id = %s ORDER BY created_at DESC LIMIT 10",
+            $user_identifier
+        ), ARRAY_A) ?: [];
+        
+        // Get last activity
+        $last_activity = $wpdb->get_var($wpdb->prepare(
+            "SELECT MAX(created_at) FROM $table_name WHERE user_id = %s",
+            $user_identifier
+        ));
+        
+        return [
+            'page_views' => (int)$page_views,
+            'time_on_site' => (int)$time_on_site,
+            'interactions' => $interactions,
+            'last_activity' => $last_activity
+        ];
+    }
 }
