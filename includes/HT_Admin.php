@@ -844,289 +844,42 @@ class HT_Admin
     }
 
     /**
-     * Render Global Observer page (PR13)
+     * Render Global Observer page (PR13 - Modernized with React)
      */
     public function render_observer_page(): void
     {
+        // Check permissions
         if (!current_user_can('manage_options')) {
+            wp_die(__('شما دسترسی لازم به این صفحه را ندارید.', 'homaye-tabesh'));
             return;
         }
 
+        // Enqueue Observer CSS
+        wp_enqueue_style(
+            'observer-styles',
+            HT_PLUGIN_URL . 'assets/css/observer.css',
+            [],
+            HT_VERSION
+        );
+
+        // Enqueue Observer React app
+        wp_enqueue_script(
+            'observer',
+            HT_PLUGIN_URL . 'assets/build/observer.js',
+            ['wp-element'],
+            HT_VERSION,
+            true
+        );
+
+        // Localize script with API endpoints
+        wp_localize_script('observer', 'homaObserverConfig', [
+            'apiUrl' => esc_url_raw(rest_url('homaye/v1')),
+            'nonce' => wp_create_nonce('wp_rest'),
+        ]);
+
         ?>
-        <div class="wrap" style="direction: rtl; text-align: right;">
-            <h1><?php echo esc_html__('ناظر کل افزونه‌ها', 'homaye-tabesh'); ?> 🔍</h1>
-            <p><?php echo esc_html__('مدیریت نظارت بر افزونه‌ها و استخراج اطلاعات برای هوش مصنوعی', 'homaye-tabesh'); ?></p>
-            
-            <div id="observer-container">
-                <div class="card" style="margin-top: 20px;">
-                    <h2>وضعیت ناظر کل</h2>
-                    <div id="observer-status">
-                        <p>در حال بارگذاری...</p>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-top: 20px;">
-                    <h2>افزونه‌های نصب شده</h2>
-                    <p>افزونه‌های تحت نظر با ✅ مشخص شده‌اند. برای اضافه/حذف کردن افزونه از لیست نظارت، روی دکمه کلیک کنید.</p>
-                    <div id="plugins-list">
-                        <p>در حال بارگذاری...</p>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-top: 20px;">
-                    <h2>تغییرات اخیر</h2>
-                    <div id="recent-changes">
-                        <p>در حال بارگذاری...</p>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-top: 20px;">
-                    <h2>فکت‌های استخراج شده</h2>
-                    <div id="recent-facts">
-                        <p>در حال بارگذاری...</p>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-top: 20px;">
-                    <h2>عملیات</h2>
-                    <button id="refresh-metadata-btn" class="button button-primary">
-                        به‌روزرسانی متادیتا
-                    </button>
-                    <span id="refresh-status"></span>
-                </div>
-            </div>
-            
-            <script>
-                jQuery(document).ready(function($) {
-                    const API_BASE = '<?php echo esc_url(rest_url('homaye/v1')); ?>';
-                    const NONCE = '<?php echo wp_create_nonce('wp_rest'); ?>';
-
-                    // Load observer status
-                    function loadObserverStatus() {
-                        $.ajax({
-                            url: API_BASE + '/observer/status',
-                            method: 'GET',
-                            beforeSend: function(xhr) {
-                                xhr.setRequestHeader('X-WP-Nonce', NONCE);
-                            },
-                            success: function(response) {
-                                if (response.success) {
-                                    const data = response.data;
-                                    $('#observer-status').html(\`
-                                        <ul style="list-style: none; padding: 0;">
-                                            <li>✅ تعداد افزونه‌های تحت نظر: <strong>\${data.monitored_count}</strong></li>
-                                            <li>✅ افزونه‌های فعال: <strong>\${data.active_count}</strong></li>
-                                            <li>✅ آخرین همگام‌سازی: <strong>\${data.last_sync}</strong></li>
-                                        </ul>
-                                    \`);
-                                }
-                            },
-                            error: function() {
-                                $('#observer-status').html('<p style="color: red;">خطا در بارگذاری</p>');
-                            }
-                        });
-                    }
-
-                    // Load plugins list
-                    function loadPluginsList() {
-                        $.ajax({
-                            url: API_BASE + '/observer/plugins',
-                            method: 'GET',
-                            beforeSend: function(xhr) {
-                                xhr.setRequestHeader('X-WP-Nonce', NONCE);
-                            },
-                            success: function(response) {
-                                if (response.success) {
-                                    let html = '<table class="wp-list-table widefat fixed striped" style="width: 100%;">';
-                                    html += '<thead><tr>';
-                                    html += '<th>نام افزونه</th>';
-                                    html += '<th>نسخه</th>';
-                                    html += '<th>وضعیت</th>';
-                                    html += '<th>نظارت</th>';
-                                    html += '<th>عملیات</th>';
-                                    html += '</tr></thead><tbody>';
-
-                                    response.data.forEach(function(plugin) {
-                                        const activeText = plugin.is_active ? '✅ فعال' : '❌ غیرفعال';
-                                        const monitorText = plugin.is_monitored ? '✅ تحت نظر' : '➖ خیر';
-                                        const btnText = plugin.is_monitored ? 'حذف از نظارت' : 'اضافه به نظارت';
-                                        const btnClass = plugin.is_monitored ? 'button' : 'button button-primary';
-                                        
-                                        html += '<tr>';
-                                        html += \`<td><strong>\${plugin.name}</strong><br/><small>\${plugin.description}</small></td>\`;
-                                        html += \`<td>\${plugin.version}</td>\`;
-                                        html += \`<td>\${activeText}</td>\`;
-                                        html += \`<td>\${monitorText}</td>\`;
-                                        html += \`<td><button class="toggle-monitor \${btnClass}" data-path="\${plugin.path}" data-monitored="\${plugin.is_monitored}">\${btnText}</button></td>\`;
-                                        html += '</tr>';
-                                    });
-
-                                    html += '</tbody></table>';
-                                    $('#plugins-list').html(html);
-
-                                    // Bind toggle events
-                                    $('.toggle-monitor').on('click', function() {
-                                        const btn = $(this);
-                                        const path = btn.data('path');
-                                        const isMonitored = btn.data('monitored');
-                                        toggleMonitoring(path, isMonitored, btn);
-                                    });
-                                }
-                            },
-                            error: function() {
-                                $('#plugins-list').html('<p style="color: red;">خطا در بارگذاری</p>');
-                            }
-                        });
-                    }
-
-                    // Toggle monitoring
-                    function toggleMonitoring(path, isMonitored, btn) {
-                        const endpoint = isMonitored ? '/observer/monitor/remove' : '/observer/monitor/add';
-                        
-                        btn.prop('disabled', true).text('در حال پردازش...');
-
-                        $.ajax({
-                            url: API_BASE + endpoint,
-                            method: 'POST',
-                            beforeSend: function(xhr) {
-                                xhr.setRequestHeader('X-WP-Nonce', NONCE);
-                            },
-                            data: {
-                                plugin_path: path
-                            },
-                            success: function(response) {
-                                if (response.success) {
-                                    loadObserverStatus();
-                                    loadPluginsList();
-                                }
-                            },
-                            error: function() {
-                                alert('خطا در انجام عملیات');
-                                btn.prop('disabled', false);
-                            }
-                        });
-                    }
-
-                    // Load recent changes
-                    function loadRecentChanges() {
-                        $.ajax({
-                            url: API_BASE + '/observer/changes',
-                            method: 'GET',
-                            beforeSend: function(xhr) {
-                                xhr.setRequestHeader('X-WP-Nonce', NONCE);
-                            },
-                            success: function(response) {
-                                if (response.success && response.data.length > 0) {
-                                    let html = '<table class="wp-list-table widefat" style="width: 100%;">';
-                                    html += '<thead><tr><th>نوع رویداد</th><th>زمان</th></tr></thead><tbody>';
-
-                                    response.data.forEach(function(change) {
-                                        html += '<tr>';
-                                        html += \`<td>\${change.event_type}</td>\`;
-                                        html += \`<td>\${change.created_at}</td>\`;
-                                        html += '</tr>';
-                                    });
-
-                                    html += '</tbody></table>';
-                                    $('#recent-changes').html(html);
-                                } else {
-                                    $('#recent-changes').html('<p>هیچ تغییری ثبت نشده است.</p>');
-                                }
-                            },
-                            error: function() {
-                                $('#recent-changes').html('<p style="color: red;">خطا در بارگذاری</p>');
-                            }
-                        });
-                    }
-
-                    // Load recent facts
-                    function loadRecentFacts() {
-                        $.ajax({
-                            url: API_BASE + '/observer/facts',
-                            method: 'GET',
-                            beforeSend: function(xhr) {
-                                xhr.setRequestHeader('X-WP-Nonce', NONCE);
-                            },
-                            success: function(response) {
-                                if (response.success && response.data.length > 0) {
-                                    let html = '<ul style="list-style: disc; padding-right: 20px;">';
-
-                                    response.data.forEach(function(fact) {
-                                        html += \`<li><strong>\${fact.fact}</strong> <small>(\${fact.created_at})</small></li>\`;
-                                    });
-
-                                    html += '</ul>';
-                                    $('#recent-facts').html(html);
-                                } else {
-                                    $('#recent-facts').html('<p>هیچ فکتی استخراج نشده است.</p>');
-                                }
-                            },
-                            error: function() {
-                                $('#recent-facts').html('<p style="color: red;">خطا در بارگذاری</p>');
-                            }
-                        });
-                    }
-
-                    // Refresh metadata
-                    $('#refresh-metadata-btn').on('click', function() {
-                        const btn = $(this);
-                        btn.prop('disabled', true).text('در حال به‌روزرسانی...');
-                        $('#refresh-status').text('');
-
-                        $.ajax({
-                            url: API_BASE + '/observer/refresh',
-                            method: 'POST',
-                            beforeSend: function(xhr) {
-                                xhr.setRequestHeader('X-WP-Nonce', NONCE);
-                            },
-                            success: function(response) {
-                                if (response.success) {
-                                    $('#refresh-status').html('<span style="color: green;">✅ متادیتا به‌روزرسانی شد!</span>');
-                                    loadObserverStatus();
-                                }
-                                btn.prop('disabled', false).text('به‌روزرسانی متادیتا');
-                            },
-                            error: function() {
-                                $('#refresh-status').html('<span style="color: red;">❌ خطا در به‌روزرسانی</span>');
-                                btn.prop('disabled', false).text('به‌روزرسانی متادیتا');
-                            }
-                        });
-                    });
-
-                    // Initial load
-                    loadObserverStatus();
-                    loadPluginsList();
-                    loadRecentChanges();
-                    loadRecentFacts();
-
-                    // Auto-refresh every 30 seconds
-                    setInterval(function() {
-                        loadRecentChanges();
-                        loadRecentFacts();
-                    }, 30000);
-                });
-            </script>
-
-            <style>
-                .card {
-                    background: #fff;
-                    border: 1px solid #ccd0d4;
-                    box-shadow: 0 1px 1px rgba(0,0,0,.04);
-                    padding: 20px;
-                }
-                .card h2 {
-                    margin-top: 0;
-                    font-size: 18px;
-                    font-weight: 600;
-                }
-                #observer-container ul {
-                    margin: 10px 0;
-                }
-                #observer-container ul li {
-                    margin: 8px 0;
-                    font-size: 14px;
-                }
-            </style>
+        <div class="wrap homaye-tabesh-observer">
+            <div id="homa-observer-root"></div>
         </div>
         <?php
     }
