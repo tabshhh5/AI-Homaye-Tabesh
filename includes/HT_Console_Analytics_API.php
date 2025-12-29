@@ -109,6 +109,42 @@ class HT_Console_Analytics_API
             'permission_callback' => [$this, 'check_admin_permission']
         ]);
 
+        // Order Management Endpoints
+        // List orders
+        register_rest_route('homaye/v1/console', '/orders', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_orders'],
+            'permission_callback' => [$this, 'check_admin_permission']
+        ]);
+
+        // Create order
+        register_rest_route('homaye/v1/console', '/orders', [
+            'methods' => 'POST',
+            'callback' => [$this, 'create_order'],
+            'permission_callback' => [$this, 'check_admin_permission']
+        ]);
+
+        // Get single order
+        register_rest_route('homaye/v1/console', '/orders/(?P<id>\\d+)', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_order'],
+            'permission_callback' => [$this, 'check_admin_permission']
+        ]);
+
+        // Update order
+        register_rest_route('homaye/v1/console', '/orders/(?P<id>\\d+)', [
+            'methods' => 'PUT',
+            'callback' => [$this, 'update_order'],
+            'permission_callback' => [$this, 'check_admin_permission']
+        ]);
+
+        // Delete order
+        register_rest_route('homaye/v1/console', '/orders/(?P<id>\\d+)', [
+            'methods' => 'DELETE',
+            'callback' => [$this, 'delete_order'],
+            'permission_callback' => [$this, 'check_admin_permission']
+        ]);
+
         // Settings endpoints
         register_rest_route('homaye/v1/console', '/settings', [
             [
@@ -691,5 +727,357 @@ class HT_Console_Analytics_API
             default:
                 return date('Y-m-d H:i:s', strtotime('-7 days'));
         }
+    }
+
+    /**
+     * Get orders list
+     */
+    public function get_orders(\WP_REST_Request $request): \WP_REST_Response
+    {
+        if (!$this->is_woocommerce_active()) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'ووکامرس فعال نیست'
+            ], 400);
+        }
+
+        $filter = $request->get_param('filter') ?: 'all';
+        
+        $args = [
+            'limit' => 100,
+            'orderby' => 'date',
+            'order' => 'DESC',
+        ];
+
+        if ($filter !== 'all') {
+            $args['status'] = $filter;
+        }
+
+        $orders = wc_get_orders($args);
+        $orders_data = [];
+
+        foreach ($orders as $order) {
+            $orders_data[] = $this->format_order_for_list($order);
+        }
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'data' => $orders_data
+        ]);
+    }
+
+    /**
+     * Get single order details
+     */
+    public function get_order(\WP_REST_Request $request): \WP_REST_Response
+    {
+        if (!$this->is_woocommerce_active()) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'ووکامرس فعال نیست'
+            ], 400);
+        }
+
+        $order_id = (int) $request['id'];
+        $order = wc_get_order($order_id);
+
+        if (!$order) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'سفارش پیدا نشد'
+            ], 404);
+        }
+
+        return new \WP_REST_Response([
+            'success' => true,
+            'data' => $this->format_order_details($order)
+        ]);
+    }
+
+    /**
+     * Create new order
+     */
+    public function create_order(\WP_REST_Request $request): \WP_REST_Response
+    {
+        if (!$this->is_woocommerce_active()) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'ووکامرس فعال نیست'
+            ], 400);
+        }
+
+        try {
+            $data = $request->get_json_params();
+            
+            // Create order
+            $order = wc_create_order();
+            
+            // Set customer information
+            $order->set_billing_first_name($data['customer_name'] ?? '');
+            $order->set_billing_email($data['customer_email'] ?? '');
+            $order->set_billing_phone($data['customer_phone'] ?? '');
+            
+            if (!empty($data['billing_address'])) {
+                $order->set_billing_address_1($data['billing_address']);
+            }
+            
+            if (!empty($data['shipping_address'])) {
+                $order->set_shipping_address_1($data['shipping_address']);
+            }
+            
+            // Add items
+            if (!empty($data['items'])) {
+                foreach ($data['items'] as $item) {
+                    if (empty($item['product_name'])) continue;
+                    
+                    $order->add_product(
+                        wc_get_product($item['product_id'] ?? 0),
+                        $item['quantity'] ?? 1,
+                        [
+                            'subtotal' => $item['price'] ?? 0,
+                            'total' => ($item['price'] ?? 0) * ($item['quantity'] ?? 1)
+                        ]
+                    );
+                }
+            }
+            
+            // Set order status
+            $order->set_status($data['status'] ?? 'pending');
+            
+            // Set payment method
+            $order->set_payment_method($data['payment_method'] ?? 'bank');
+            
+            // Set shipping method
+            $order->set_shipping_method($data['shipping_method'] ?? 'standard');
+            
+            // Add notes
+            if (!empty($data['notes'])) {
+                $order->add_order_note($data['notes']);
+            }
+            
+            // Calculate totals
+            $order->calculate_totals();
+            
+            // Save order
+            $order->save();
+            
+            return new \WP_REST_Response([
+                'success' => true,
+                'message' => 'سفارش با موفقیت ثبت شد',
+                'data' => [
+                    'id' => $order->get_id(),
+                    'order_number' => $order->get_order_number()
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'خطا در ثبت سفارش: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update existing order
+     */
+    public function update_order(\WP_REST_Request $request): \WP_REST_Response
+    {
+        if (!$this->is_woocommerce_active()) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'ووکامرس فعال نیست'
+            ], 400);
+        }
+
+        $order_id = (int) $request['id'];
+        $order = wc_get_order($order_id);
+
+        if (!$order) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'سفارش پیدا نشد'
+            ], 404);
+        }
+
+        try {
+            $data = $request->get_json_params();
+            
+            // Update customer information
+            if (isset($data['customer_name'])) {
+                $order->set_billing_first_name($data['customer_name']);
+            }
+            
+            if (isset($data['customer_email'])) {
+                $order->set_billing_email($data['customer_email']);
+            }
+            
+            if (isset($data['customer_phone'])) {
+                $order->set_billing_phone($data['customer_phone']);
+            }
+            
+            if (isset($data['billing_address'])) {
+                $order->set_billing_address_1($data['billing_address']);
+            }
+            
+            if (isset($data['shipping_address'])) {
+                $order->set_shipping_address_1($data['shipping_address']);
+            }
+            
+            // Update status
+            if (isset($data['status'])) {
+                $order->set_status($data['status']);
+            }
+            
+            // Update payment method
+            if (isset($data['payment_method'])) {
+                $order->set_payment_method($data['payment_method']);
+            }
+            
+            // Add notes
+            if (!empty($data['notes'])) {
+                $order->add_order_note($data['notes']);
+            }
+            
+            // Save changes
+            $order->save();
+            
+            return new \WP_REST_Response([
+                'success' => true,
+                'message' => 'سفارش با موفقیت بروزرسانی شد'
+            ]);
+            
+        } catch (\Exception $e) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'خطا در بروزرسانی سفارش: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete order
+     */
+    public function delete_order(\WP_REST_Request $request): \WP_REST_Response
+    {
+        if (!$this->is_woocommerce_active()) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'ووکامرس فعال نیست'
+            ], 400);
+        }
+
+        $order_id = (int) $request['id'];
+        $order = wc_get_order($order_id);
+
+        if (!$order) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'سفارش پیدا نشد'
+            ], 404);
+        }
+
+        try {
+            // Move to trash instead of permanent delete
+            $order->delete(false);
+            
+            return new \WP_REST_Response([
+                'success' => true,
+                'message' => 'سفارش به سطل زباله منتقل شد'
+            ]);
+            
+        } catch (\Exception $e) {
+            return new \WP_REST_Response([
+                'success' => false,
+                'message' => 'خطا در حذف سفارش: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Format order for list view
+     */
+    private function format_order_for_list($order): array
+    {
+        return [
+            'id' => $order->get_id(),
+            'order_number' => $order->get_order_number(),
+            'customer_name' => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+            'customer_email' => $order->get_billing_email(),
+            'customer_phone' => $order->get_billing_phone(),
+            'status' => $order->get_status(),
+            'total' => $order->get_total(),
+            'date_created' => $order->get_date_created()->date_i18n('Y/m/d H:i'),
+            'payment_method' => $order->get_payment_method(),
+            'payment_method_title' => $order->get_payment_method_title(),
+            'shipping_method' => $order->get_shipping_method(),
+            'shipping_method_title' => $order->get_shipping_method()
+        ];
+    }
+
+    /**
+     * Format order details
+     */
+    private function format_order_details($order): array
+    {
+        $items = [];
+        foreach ($order->get_items() as $item) {
+            $product = $item->get_product();
+            $items[] = [
+                'product_id' => $product ? $product->get_id() : 0,
+                'product_name' => $item->get_name(),
+                'quantity' => $item->get_quantity(),
+                'price' => $item->get_total() / $item->get_quantity(),
+                'total' => $item->get_total()
+            ];
+        }
+
+        return [
+            'id' => $order->get_id(),
+            'order_number' => $order->get_order_number(),
+            'customer_name' => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+            'customer_email' => $order->get_billing_email(),
+            'customer_phone' => $order->get_billing_phone(),
+            'billing_address' => $order->get_billing_address_1(),
+            'shipping_address' => $order->get_shipping_address_1(),
+            'status' => $order->get_status(),
+            'total' => $order->get_total(),
+            'date_created' => $order->get_date_created()->date_i18n('Y/m/d H:i'),
+            'date_modified' => $order->get_date_modified() ? $order->get_date_modified()->date_i18n('Y/m/d H:i') : null,
+            'payment_method' => $order->get_payment_method(),
+            'payment_method_title' => $order->get_payment_method_title(),
+            'payment_status' => $order->is_paid() ? 'پرداخت شده' : 'پرداخت نشده',
+            'shipping_method' => $order->get_shipping_method(),
+            'shipping_method_title' => $order->get_shipping_method(),
+            'tracking_code' => $order->get_meta('_shipping_tracking_number') ?: null,
+            'items' => $items,
+            'notes' => $this->get_order_notes($order)
+        ];
+    }
+
+    /**
+     * Get order notes
+     */
+    private function get_order_notes($order): string
+    {
+        $notes = wc_get_order_notes([
+            'order_id' => $order->get_id(),
+            'type' => 'customer'
+        ]);
+
+        $notes_text = [];
+        foreach ($notes as $note) {
+            $notes_text[] = $note->content;
+        }
+
+        return implode("\n", $notes_text);
+    }
+
+    /**
+     * Check if WooCommerce is active
+     */
+    private function is_woocommerce_active(): bool
+    {
+        return class_exists('WooCommerce');
     }
 }

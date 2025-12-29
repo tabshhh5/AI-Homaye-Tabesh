@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import OverviewAnalytics from './OverviewAnalytics';
 import UserIntelligence from './UserIntelligence';
+import OrderManagement from './OrderManagement';
 import SystemHealth from './SystemHealth';
 import BrainGrowth from './BrainGrowth';
 import SuperSettings from './SuperSettings';
@@ -24,6 +25,14 @@ const SuperConsole = () => {
             icon: '📊', 
             component: OverviewAnalytics,
             description: 'نمودارهای مصرف و دادههای استراتژیک'
+        },
+        { 
+            id: 'orders', 
+            name: 'مدیریت سفارشات', 
+            icon: '📦', 
+            component: OrderManagement,
+            description: 'ثبت، ویرایش و مدیریت کامل سفارشات',
+            adminOnly: true
         },
         { 
             id: 'users', 
