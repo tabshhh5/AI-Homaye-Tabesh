@@ -809,6 +809,21 @@ class HT_Console_Analytics_API
         try {
             $data = $request->get_json_params();
             
+            // Validate required fields
+            if (empty($data['customer_name'])) {
+                return new \WP_REST_Response([
+                    'success' => false,
+                    'message' => 'نام مشتری الزامی است'
+                ], 400);
+            }
+            
+            if (empty($data['customer_phone'])) {
+                return new \WP_REST_Response([
+                    'success' => false,
+                    'message' => 'شماره تماس الزامی است'
+                ], 400);
+            }
+            
             // Create order
             $order = wc_create_order();
             
@@ -830,14 +845,13 @@ class HT_Console_Analytics_API
                 foreach ($data['items'] as $item) {
                     if (empty($item['product_name'])) continue;
                     
-                    $order->add_product(
-                        wc_get_product($item['product_id'] ?? 0),
-                        $item['quantity'] ?? 1,
-                        [
-                            'subtotal' => $item['price'] ?? 0,
-                            'total' => ($item['price'] ?? 0) * ($item['quantity'] ?? 1)
-                        ]
-                    );
+                    // Create a manual order item
+                    $order_item = new \WC_Order_Item_Product();
+                    $order_item->set_name($item['product_name']);
+                    $order_item->set_quantity($item['quantity'] ?? 1);
+                    $order_item->set_subtotal($item['price'] ?? 0);
+                    $order_item->set_total(($item['price'] ?? 0) * ($item['quantity'] ?? 1));
+                    $order->add_item($order_item);
                 }
             }
             
