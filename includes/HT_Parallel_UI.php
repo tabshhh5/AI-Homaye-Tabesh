@@ -50,6 +50,9 @@ class HT_Parallel_UI
 
         // Add body class
         add_filter('body_class', [$this, 'add_body_class']);
+        
+        // Add cache headers for static assets
+        add_action('send_headers', [$this, 'add_asset_cache_headers']);
     }
 
     /**
@@ -62,6 +65,11 @@ class HT_Parallel_UI
     {
         // Only load on frontend
         if (is_admin()) {
+            return;
+        }
+
+        // Only load on pages where Homa is needed
+        if (!$this->should_load_homa()) {
             return;
         }
 
@@ -91,6 +99,10 @@ class HT_Parallel_UI
      */
     public function enqueue_assets(): void
     {
+        // Only load on pages where Homa is needed
+        if (!$this->should_load_homa()) {
+            return;
+        }
         // Enqueue React (from CDN for better caching)
         wp_enqueue_script(
             'react',
@@ -418,5 +430,105 @@ class HT_Parallel_UI
     {
         $classes[] = 'homa-parallel-ui-enabled';
         return $classes;
+    }
+
+    /**
+     * Determine if Homa scripts should load on current page
+     * Only loads on specific pages to improve performance
+     *
+     * @return bool
+     */
+    private function should_load_homa(): bool
+    {
+        // Allow admin override via filter
+        $force_load = apply_filters('homa_force_load_scripts', false);
+        if ($force_load) {
+            return true;
+        }
+
+        // Load on checkout and cart pages (WooCommerce)
+        if (function_exists('is_checkout') && is_checkout()) {
+            return true;
+        }
+        if (function_exists('is_cart') && is_cart()) {
+            return true;
+        }
+
+        // Load on account/dashboard pages
+        if (function_exists('is_account_page') && is_account_page()) {
+            return true;
+        }
+
+        // Load on product pages
+        if (function_exists('is_product') && is_product()) {
+            return true;
+        }
+
+        // Load on pages with contact forms or specific shortcodes
+        global $post;
+        if ($post && has_shortcode($post->post_content, 'contact-form-7')) {
+            return true;
+        }
+        if ($post && has_shortcode($post->post_content, 'homa')) {
+            return true;
+        }
+
+        // Load on specific page templates or custom pages
+        if (is_page()) {
+            // Get page template
+            $template = get_page_template_slug();
+            
+            // Load on contact, order, quote, or support pages
+            $homa_pages = ['contact', 'order', 'quote', 'support', 'dashboard', 'tamas'];
+            $page_slug = get_post_field('post_name', get_the_ID());
+            
+            foreach ($homa_pages as $page_name) {
+                if (strpos($page_slug, $page_name) !== false || strpos($template, $page_name) !== false) {
+                    return true;
+                }
+            }
+        }
+
+        // Don't load on other pages (even for admins, to improve performance)
+        // Admin can use filter hook to force load if needed: add_filter('homa_force_load_scripts', '__return_true')
+        return false;
+    }
+
+    /**
+     * Add cache headers for Homa static assets
+     * Improves performance and CDN compatibility
+     *
+     * @return void
+     */
+    public function add_asset_cache_headers(): void
+    {
+        // Only apply to frontend requests
+        if (is_admin()) {
+            return;
+        }
+
+        // Check if this is a request for our assets
+        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        
+        // Match Homa plugin assets
+        if (strpos($request_uri, '/homaye-tabesh/assets/') !== false) {
+            // Set cache headers for static assets (JS/CSS)
+            if (preg_match('/\.(js|css)$/', $request_uri)) {
+                // Cache for 1 year (immutable with versioning)
+                header('Cache-Control: public, max-age=31536000, immutable');
+                header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
+                
+                // ETag for validation
+                $etag = md5(HT_VERSION . $request_uri);
+                header('ETag: "' . $etag . '"');
+                
+                // Handle conditional requests
+                if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && 
+                    trim($_SERVER['HTTP_IF_NONE_MATCH'], '"') === $etag) {
+                    header('HTTP/1.1 304 Not Modified');
+                    exit;
+                }
+            }
+        }
     }
 }

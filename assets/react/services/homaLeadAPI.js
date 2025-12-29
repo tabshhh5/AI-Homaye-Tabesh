@@ -8,6 +8,33 @@ class HomaLeadAPI {
     constructor() {
         this.baseUrl = window.homaConfig?.restUrl || '/wp-json/homa/v1';
         this.nonce = window.homaConfig?.nonce || '';
+        this.maxRetries = 2;
+    }
+
+    /**
+     * Generic fetch with retry logic
+     */
+    async fetchWithRetry(url, options = {}, retries = 0) {
+        try {
+            const response = await fetch(url, options);
+
+            // Don't retry on authentication errors
+            if (response.status === 401) {
+                throw new Error('نشست منقضی شده است. لطفاً صفحه را رفرش کنید.');
+            }
+
+            // Retry on server errors if retries remaining
+            if (response.status >= 500 && retries < this.maxRetries) {
+                console.log(`[HomaLeadAPI] Retrying request (attempt ${retries + 1}/${this.maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * (retries + 1)));
+                return this.fetchWithRetry(url, options, retries + 1);
+            }
+
+            return response;
+        } catch (error) {
+            // Don't retry on network errors
+            throw error;
+        }
     }
 
     /**
@@ -15,7 +42,7 @@ class HomaLeadAPI {
      */
     async sendOTP(phoneNumber, sessionToken = null) {
         try {
-            const response = await fetch(`${this.baseUrl}/otp/send`, {
+            const response = await this.fetchWithRetry(`${this.baseUrl}/otp/send`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -45,7 +72,7 @@ class HomaLeadAPI {
      */
     async verifyOTP(phoneNumber, otpCode, userData = {}) {
         try {
-            const response = await fetch(`${this.baseUrl}/otp/verify`, {
+            const response = await this.fetchWithRetry(`${this.baseUrl}/otp/verify`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -76,7 +103,7 @@ class HomaLeadAPI {
      */
     async createLead(leadData) {
         try {
-            const response = await fetch(`${this.baseUrl}/leads`, {
+            const response = await this.fetchWithRetry(`${this.baseUrl}/leads`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -103,7 +130,7 @@ class HomaLeadAPI {
      */
     async calculateLeadScore(params) {
         try {
-            const response = await fetch(`${this.baseUrl}/leads/calculate-score`, {
+            const response = await this.fetchWithRetry(`${this.baseUrl}/leads/calculate-score`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -130,7 +157,7 @@ class HomaLeadAPI {
      */
     async createDraftOrder(leadId, products = []) {
         try {
-            const response = await fetch(`${this.baseUrl}/leads/${leadId}/draft-order`, {
+            const response = await this.fetchWithRetry(`${this.baseUrl}/leads/${leadId}/draft-order`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -157,7 +184,7 @@ class HomaLeadAPI {
      */
     async getLead(leadId) {
         try {
-            const response = await fetch(`${this.baseUrl}/leads/${leadId}`, {
+            const response = await this.fetchWithRetry(`${this.baseUrl}/leads/${leadId}`, {
                 headers: {
                     'X-WP-Nonce': this.nonce,
                 },
@@ -181,7 +208,7 @@ class HomaLeadAPI {
      */
     async updateLead(leadId, updates) {
         try {
-            const response = await fetch(`${this.baseUrl}/leads/${leadId}`, {
+            const response = await this.fetchWithRetry(`${this.baseUrl}/leads/${leadId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

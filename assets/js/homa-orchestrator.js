@@ -20,11 +20,8 @@
         init: function() {
             try {
                 if (this.initialized) {
-                    console.log('[Homa Orchestrator] Already initialized');
                     return;
                 }
-
-                console.log('[Homa Orchestrator] Starting initialization...');
 
                 this.setupGlobalWrapper();
                 this.setupEventListeners();
@@ -34,14 +31,13 @@
             } catch (error) {
                 console.error('[Homa Orchestrator] Initialization failed:', error);
                 
-                // Try minimal initialization
+                // Try minimal initialization (only once)
                 try {
                     this.createFallbackSidebar();
                     this.setupEventListeners();
                     this.initialized = true;
-                    console.log('[Homa Orchestrator] Fallback initialization completed');
                 } catch (fallbackError) {
-                    console.error('[Homa Orchestrator] Even fallback init failed:', fallbackError);
+                    console.error('[Homa Orchestrator] Fallback initialization failed:', fallbackError);
                 }
                 
                 // Report error if handler available
@@ -58,7 +54,6 @@
             try {
                 // Check if wrapper already exists
                 if (document.getElementById('homa-global-wrapper')) {
-                    console.log('[Homa Orchestrator] Global wrapper already exists');
                     return;
                 }
 
@@ -103,8 +98,6 @@
                 } catch (styleError) {
                     console.warn('[Homa Orchestrator] Could not apply body styles:', styleError);
                 }
-
-                console.log('[Homa Orchestrator] Global wrapper structure created successfully');
             } catch (error) {
                 console.error('[Homa Orchestrator] Failed to setup global wrapper:', error);
                 
@@ -125,7 +118,6 @@
             try {
                 // Check if sidebar already exists
                 if (document.getElementById('homa-sidebar-view')) {
-                    console.log('[Homa Orchestrator] Sidebar container already exists');
                     return;
                 }
 
@@ -134,8 +126,6 @@
                     console.error('[Homa Orchestrator] Cannot create fallback sidebar - document.body not available');
                     return;
                 }
-
-                console.log('[Homa Orchestrator] Creating fallback sidebar container');
                 
                 // Create minimal sidebar
                 const sidebar = document.createElement('div');
@@ -154,9 +144,8 @@
                 `;
                 
                 document.body.appendChild(sidebar);
-                console.log('[Homa Orchestrator] Fallback sidebar created successfully');
             } catch (fallbackError) {
-                console.error('[Homa Orchestrator] Even fallback sidebar creation failed:', fallbackError);
+                console.error('[Homa Orchestrator] Fallback sidebar creation failed:', fallbackError);
             }
         },
 
@@ -397,15 +386,29 @@
 
     // CRITICAL: Initialize orchestrator as early as possible
     // Create a synchronous init function that runs immediately
+    let initAttempts = 0;
+    const MAX_INIT_ATTEMPTS = 2;
+    
     const initOrchestrator = () => {
         if (!window.HomaOrchestrator.initialized) {
-            console.log('[Homa Orchestrator] Synchronous initialization starting...');
+            initAttempts++;
+            console.log(`[Homa Orchestrator] Initialization attempt ${initAttempts}/${MAX_INIT_ATTEMPTS}`);
+            
             window.HomaOrchestrator.init();
             
             // Verify container exists after init
             if (!document.getElementById('homa-sidebar-view')) {
-                console.warn('[Homa Orchestrator] Container missing after init, creating fallback');
-                window.HomaOrchestrator.createFallbackSidebar();
+                if (initAttempts < MAX_INIT_ATTEMPTS) {
+                    console.warn(`[Homa Orchestrator] Container missing after init attempt ${initAttempts}, retrying...`);
+                    window.HomaOrchestrator.createFallbackSidebar();
+                } else {
+                    console.error('[Homa Orchestrator] Failed to create container after maximum attempts.');
+                    console.error('[Homa Orchestrator] Troubleshooting: Check if there are JavaScript errors in console, or try refreshing the page.');
+                    // Stop retry loop
+                    return;
+                }
+            } else {
+                console.log('[Homa Orchestrator] Container created successfully');
             }
         }
     };

@@ -94,34 +94,56 @@ const HomaSidebar = () => {
      * Load chat history from database
      */
     const loadChatHistoryFromDatabase = async () => {
-        try {
-            const response = await fetch('/wp-json/homaye-tabesh/v1/chat/memory', {
-                headers: {
-                    'X-WP-Nonce': window.homayeParallelUIConfig?.nonce || ''
-                }
-            });
+        const MAX_RETRIES = 2;
+        let retryCount = 0;
+        
+        const attemptLoad = async () => {
+            try {
+                const response = await fetch('/wp-json/homaye-tabesh/v1/chat/memory', {
+                    headers: {
+                        'X-WP-Nonce': window.homayeParallelUIConfig?.nonce || ''
+                    }
+                });
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.messages && data.messages.length > 0) {
-                    // Convert database messages to UI format
-                    const loadedMessages = data.messages.map((msg, index) => ({
-                        id: Date.now() + index,
-                        type: msg.type,
-                        content: msg.content,
-                        timestamp: new Date(msg.timestamp),
-                        actions: msg.metadata?.actions || []
-                    }));
-                    
-                    // Load messages into store
-                    loadedMessages.forEach(msg => addMessage(msg));
-                    
-                    console.log('[Homa] Loaded', loadedMessages.length, 'messages from database');
+                // Don't retry on auth errors
+                if (response.status === 401) {
+                    console.warn('[Homa] Session expired. Chat history not loaded.');
+                    return;
                 }
+
+                // Retry on server errors
+                if (response.status >= 500 && retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    console.log(`[Homa] Retrying chat history load (attempt ${retryCount}/${MAX_RETRIES})`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                    return attemptLoad();
+                }
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.messages && data.messages.length > 0) {
+                        // Convert database messages to UI format
+                        const loadedMessages = data.messages.map((msg, index) => ({
+                            id: Date.now() + index,
+                            type: msg.type,
+                            content: msg.content,
+                            timestamp: new Date(msg.timestamp),
+                            actions: msg.metadata?.actions || []
+                        }));
+                        
+                        // Load messages into store
+                        loadedMessages.forEach(msg => addMessage(msg));
+                        
+                        console.log('[Homa] Loaded', loadedMessages.length, 'messages from database');
+                    }
+                }
+            } catch (error) {
+                console.error('[Homa] Failed to load chat history from database:', error);
+                // Don't retry on network errors - fail silently
             }
-        } catch (error) {
-            console.error('[Homa] Failed to load chat history from database:', error);
-        }
+        };
+        
+        await attemptLoad();
     };
 
     const loadChatHistory = () => {
@@ -159,42 +181,65 @@ const HomaSidebar = () => {
      * Fetch user role context from server (PR15)
      */
     const fetchUserRoleContext = async () => {
-        try {
-            const response = await fetch('/wp-json/homaye-tabesh/v1/capabilities/context', {
-                headers: {
-                    'X-WP-Nonce': window.homayeParallelUIConfig?.nonce || ''
-                }
-            });
+        const MAX_RETRIES = 2;
+        let retryCount = 0;
+        
+        const attemptFetch = async () => {
+            try {
+                const response = await fetch('/wp-json/homaye-tabesh/v1/capabilities/context', {
+                    headers: {
+                        'X-WP-Nonce': window.homayeParallelUIConfig?.nonce || ''
+                    }
+                });
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    setUserRoleContext(data.context);
-                    
-                    // Only add welcome message if chat is empty (no history)
-                    // This prevents greeting from appearing on every page load
-                    if (messages.length === 0 && data.welcome_message) {
-                        const welcomeMessage = {
-                            id: Date.now(),
-                            type: 'assistant',
-                            content: data.welcome_message,
-                            timestamp: new Date(),
-                            actions: data.suggested_actions || []
-                        };
-                        addMessage(welcomeMessage);
+                // Don't retry on auth errors
+                if (response.status === 401) {
+                    console.warn('[Homa] Session expired. Using guest context.');
+                    setRoleContextLoading(false);
+                    return;
+                }
+
+                // Retry on server errors
+                if (response.status >= 500 && retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    console.log(`[Homa] Retrying role context fetch (attempt ${retryCount}/${MAX_RETRIES})`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                    return attemptFetch();
+                }
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        setUserRoleContext(data.context);
                         
-                        // Save welcome message to database
-                        saveChatMessageToDatabase('assistant', data.welcome_message, {
-                            actions: data.suggested_actions || []
-                        });
+                        // Only add welcome message if chat is empty (no history)
+                        // This prevents greeting from appearing on every page load
+                        if (messages.length === 0 && data.welcome_message) {
+                            const welcomeMessage = {
+                                id: Date.now(),
+                                type: 'assistant',
+                                content: data.welcome_message,
+                                timestamp: new Date(),
+                                actions: data.suggested_actions || []
+                            };
+                            addMessage(welcomeMessage);
+                            
+                            // Save welcome message to database
+                            saveChatMessageToDatabase('assistant', data.welcome_message, {
+                                actions: data.suggested_actions || []
+                            });
+                        }
                     }
                 }
+            } catch (error) {
+                console.error('Error fetching user role context:', error);
+                // Fail silently
+            } finally {
+                setRoleContextLoading(false);
             }
-        } catch (error) {
-            console.error('Error fetching user role context:', error);
-        } finally {
-            setRoleContextLoading(false);
-        }
+        };
+        
+        await attemptFetch();
     };
 
     useEffect(() => {
@@ -242,99 +287,138 @@ const HomaSidebar = () => {
         // Set AI processing state
         homaEmit('ai:processing', { processing: true });
 
-        // Call AI endpoint
-        try {
-            // Check if nonce is available
-            if (!window.homayeParallelUIConfig?.nonce) {
-                throw new Error('امنیت: نشست شما منقضی شده است. لطفاً صفحه را رفرش کنید.');
-            }
+        // Maximum retry attempts
+        const MAX_RETRIES = 2;
+        let retryCount = 0;
 
-            // Get current page context from Homa state
-            const homaState = window.Homa?.getState() || {};
-            const formData = getFormData();
+        const attemptSendMessage = async () => {
+            try {
+                // Check if nonce is available
+                if (!window.homayeParallelUIConfig?.nonce) {
+                    throw new Error('امنیت: نشست شما منقضی شده است. لطفاً صفحه را رفرش کنید.');
+                }
 
-            // Sanitize pageMap to remove DOM element references (prevents circular JSON error)
-            const sanitizedPageMap = (homaState.pageMap || []).map(item => {
-                const { element, rect, ...safeData } = item;
-                return {
-                    ...safeData,
-                    // Include basic rect info without the element reference
-                    rectInfo: rect ? {
-                        width: rect.width || 0,
-                        height: rect.height || 0,
-                        top: rect.top || 0,
-                        left: rect.left || 0
-                    } : null
-                };
-            });
+                // Get current page context from Homa state
+                const homaState = window.Homa?.getState() || {};
+                const formData = getFormData();
 
-            const response = await fetch('/wp-json/homaye/v1/ai/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-WP-Nonce': window.homayeParallelUIConfig.nonce
-                },
-                body: JSON.stringify({
-                    message: message,
-                    persona: userPersona,
-                    context: {
-                        page: window.location.pathname,
-                        formData: formData,
-                        currentInput: homaState.currentUserInput,
-                        pageMap: sanitizedPageMap
-                    }
-                })
-            });
-
-            const data = await response.json();
-            
-            // Stop processing indicator
-            homaEmit('ai:processing', { processing: false });
-            
-            if (data.success) {
-                // Add AI response with streaming effect
-                const aiMessage = {
-                    id: Date.now() + 1,
-                    type: 'assistant',
-                    content: data.response,
-                    timestamp: new Date(),
-                    actions: data.actions || []
-                };
-                addMessage(aiMessage);
-
-                // Emit AI response event for command interpreter
-                homaEmit('ai:response_received', {
-                    text: data.response,
-                    actions: data.actions,
-                    commands: data.commands
+                // Sanitize pageMap to remove DOM element references (prevents circular JSON error)
+                const sanitizedPageMap = (homaState.pageMap || []).map(item => {
+                    const { element, rect, ...safeData } = item;
+                    return {
+                        ...safeData,
+                        // Include basic rect info without the element reference
+                        rectInfo: rect ? {
+                            width: rect.width || 0,
+                            height: rect.height || 0,
+                            top: rect.top || 0,
+                            left: rect.left || 0
+                        } : null
+                    };
                 });
 
-                // Execute any UI actions via event bus
-                if (data.actions && Array.isArray(data.actions)) {
-                    data.actions.forEach(action => {
-                        homaEmit('ai:command', action);
-                    });
+                const response = await fetch('/wp-json/homaye/v1/ai/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-WP-Nonce': window.homayeParallelUIConfig.nonce
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        persona: userPersona,
+                        context: {
+                            page: window.location.pathname,
+                            formData: formData,
+                            currentInput: homaState.currentUserInput,
+                            pageMap: sanitizedPageMap
+                        }
+                    })
+                });
+
+                // Handle authentication errors
+                if (response.status === 401) {
+                    throw new Error('نشست شما منقضی شده است. لطفاً صفحه را رفرش کنید.');
                 }
 
-                // Execute any commands
-                if (data.commands && Array.isArray(data.commands)) {
-                    data.commands.forEach(command => {
-                        homaEmit('ai:command', command);
-                    });
+                // Handle server errors
+                if (response.status >= 500) {
+                    throw new Error('خطای سرور. لطفاً بعداً امتحان کنید.');
                 }
+
+                const data = await response.json();
+                
+                // Stop processing indicator
+                homaEmit('ai:processing', { processing: false });
+                
+                if (data.success) {
+                    // Add AI response with streaming effect
+                    const aiMessage = {
+                        id: Date.now() + 1,
+                        type: 'assistant',
+                        content: data.response,
+                        timestamp: new Date(),
+                        actions: data.actions || []
+                    };
+                    addMessage(aiMessage);
+
+                    // Emit AI response event for command interpreter
+                    homaEmit('ai:response_received', {
+                        text: data.response,
+                        actions: data.actions,
+                        commands: data.commands
+                    });
+
+                    // Execute any UI actions via event bus
+                    if (data.actions && Array.isArray(data.actions)) {
+                        data.actions.forEach(action => {
+                            homaEmit('ai:command', action);
+                        });
+                    }
+
+                    // Execute any commands
+                    if (data.commands && Array.isArray(data.commands)) {
+                        data.commands.forEach(command => {
+                            homaEmit('ai:command', command);
+                        });
+                    }
+                } else {
+                    throw new Error(data.message || 'خطایی رخ داد');
+                }
+            } catch (error) {
+                console.error('Failed to send message:', error);
+                
+                // Check if we should retry based on error type (not message content)
+                const isRetryableError = error.message && (
+                    error.message.includes('Failed to fetch') ||
+                    error.message.includes('NetworkError') ||
+                    error.message.includes('خطای سرور')
+                );
+                
+                if (retryCount < MAX_RETRIES && isRetryableError) {
+                    retryCount++;
+                    console.log(`[Homa] Retrying message send (attempt ${retryCount}/${MAX_RETRIES})`);
+                    
+                    // Wait before retry with exponential backoff
+                    await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                    return attemptSendMessage();
+                }
+                
+                // Stop processing indicator
+                homaEmit('ai:processing', { processing: false });
+                
+                // Show appropriate error message
+                const errorMessage = {
+                    id: Date.now() + 1,
+                    type: 'assistant',
+                    content: error.message || 'متأسفم، خطایی رخ داد. لطفاً دوباره امتحان کنید.',
+                    timestamp: new Date()
+                };
+                addMessage(errorMessage);
             }
-        } catch (error) {
-            console.error('Failed to send message:', error);
-            homaEmit('ai:processing', { processing: false });
-            
-            const errorMessage = {
-                id: Date.now() + 1,
-                type: 'assistant',
-                content: 'متأسفم، خطایی رخ داد. لطفاً دوباره امتحان کنید.',
-                timestamp: new Date()
-            };
-            addMessage(errorMessage);
-        }
+        };
+
+        // Start the attempt
+        await attemptSendMessage();
     };
 
     const getFormData = () => {
